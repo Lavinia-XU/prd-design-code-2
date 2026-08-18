@@ -1,0 +1,201 @@
+---
+name: prd-design-code-2
+description: 将B端产品需求转化为符合产品设计规范的Demo设计说明与AI Coding实现；负责识别产品、装配Common Design并在可用时叠加对应Product Design，完成页面拆解、HTML设计规格、Coding计划和代码实现
+metadata:
+  skill_type: workflow
+  capability: prd-to-design-to-code
+  frieren.tags: "需求设计开发"
+---
+
+# 任务目标
+
+- 将B端产品需求、PRD、截图、Demo代码、原型资料或用户想法，编排为可审阅、可生成HTML、可指导AI Coding的Demo设计与开发计划。
+- 输出可直观看到需求对应Demo的页面方案，覆盖页面导航、页面总览、逐页内容、交互逻辑、边界状态、Mock数据和Coding计划。
+- 在Coding前形成Design Context和HTML说明书，帮助用户确认AI对需求、产品设计知识和代码复用对象的理解是否正确。
+
+# 角色与职责
+
+- A 是 Workflow Orchestrator：负责组织需求输入、Design Skill Resolver、页面拆解、待确认问题、HTML说明书、Coding Plan、Coding Execution和Verification。
+- A 不维护具体设计规范：具体页面类型、业务主题、组件、导航、表格、表单、状态、术语等设计知识应来自 Common Design、Product Design、已有代码或用户输入。
+- A 负责把设计知识装配成当前任务可执行的 Design Context，并确保后续页面设计、HTML说明书和Coding执行均基于该上下文。
+- A 负责控制输出边界：对话框只展开到页面总览和待确认问题；逐页设计、交互细节、Mock数据和AI Coding详细指导写入HTML说明书。
+
+# 设计知识调用与优先级
+
+- 先读取 [Design Skill Resolver](references/01-workflow/00-design-skill-resolver.md)，再开始页面设计。
+- Design Skill必须通过当前环境的Skill查询能力实际发现并读取；未实际查询和读取的Skill一律视为不存在，禁止假设或虚构。
+- 只有完成“查询 → 读取SKILL.md → metadata校验”的Design Skill，才允许进入当前任务的Design Context并作为设计依据。
+- Common Design：优先识别声明`skill_type: common-design`的Skill，作为通用设计规则来源；若只有一个Common Design，直接使用。Common Design是进入正式页面设计阶段的必需依赖：未查询到Common Design，或查询到但无法成功读取其SKILL.md时，不得使用AI自身通用设计知识模拟Common Design；应停止进入正式页面设计，并提示缺少Common Design。
+- Product Design：作为可选增强依赖。先识别当前需求所属产品或当前可确认的产品范围，再寻找`skill_type: product-design`且`product_id`与其一致的Skill；禁止仅通过Skill名称中是否出现XDR、SASE、DSP等缩写判断。未找到匹配Product Design属于正常执行状态，不阻断流程、不作为待确认问题，进入Common Design模式继续执行，并结合当前代码环境和AI补齐。只有产品身份会影响导航、业务规则或Product Design选择，且无法根据现有输入确定时，才进入待确认问题；发现多个可能匹配的Product Design且无法判断选择对象时，也进入待确认问题。
+- Resolver只决定设计知识来源，不负责具体页面设计；读取采用“索引优先、Reference按需”的方式：
+  - Common Design：先读取SKILL.md及Design Capability Index / Reference Index；
+  - Product Design：若存在匹配项，先读取SKILL.md、Coverage及Reference Index；
+  - 再根据当前需求命中的Design Capability按需读取对应Reference；
+  - 禁止递归或无差别读取Design Skill中的全部Reference。
+- Inherit / Extend / Override：
+  - `inherit`：产品完全继承Common Design，只读取对应Common Design Reference。
+  - `extend`：先获得Common Design基础规则，再叠加Product Design补充规则。
+  - `override`：以Product Design规则作为最终设计规则；仅当Product Design明确要求参考Common Design时，再读取对应Common Design细节。
+- Design Context：页面拆解前必须形成当前任务Design Context，至少包含：
+  - 已解析的Common Design；
+  - 当前产品或当前可确认的产品范围；
+  - 本需求命中的Design Capability；
+  - 每项能力的实际知识来源；
+  - 若存在Product Design，其Coverage及`inherit / extend / override`关系；
+  - 当前代码中已验证的可复用对象；
+  - AI合理补齐项；
+  - 仍无明确规则的内容；
+  - 关键冲突和待确认业务事实。
+- 冲突原则：
+  1. 用户本轮已经明确确认的设计决策；
+  2. PRD中明确的业务事实、业务规则和业务约束；
+  3. 匹配的Product Design中的产品设计规范；
+  4. 当前明确要求复用且经过验证的代码实现；
+  5. Common Design中的通用设计规范；
+  6. AI合理补齐。
+- PRD中的“业务事实”优先于Design Skill；PRD中的“设计表达”如果仅为需求撰写者的初步页面设想而非明确约束，则可结合Product Design和Common Design优化。
+- Product Design与Common Design冲突时，按`override / extend / inherit`关系处理；代码与Design Skill冲突时，先判断代码代表历史实现还是当前明确要求复用的实现，不得仅因代码存在就推翻Product Design。
+- AI自行合理补齐的内容必须明确标记为AI补齐，不得伪装或描述为Common Design、Product Design或已有代码中已明确规定的规则。
+
+## Coding 实现与组件使用原则
+
+本 Skill 负责确定页面最终采用何种 Coding 实现方式，但不自行维护具体通用组件的设计与使用规范。
+
+生成页面级 AI Coding 指导前，必须结合以下信息确定最终实现方式：
+
+1. 若存在匹配Product Design，读取其中明确的产品已有页面、业务模块、业务组件和复用规则；
+2. 当前代码环境中可验证的已有页面、组件、路由、交互和实现方式；
+3. Common Design 中的标准组件映射与组件使用规范；
+4. 前述能力均无法满足需求时，才允许新增实现。
+
+若存在匹配Product Design，其用于说明产品中应优先复用什么；当前代码环境用于验证该复用对象是否真实存在以及实际实现方式；Common Design 用于提供标准基础组件和通用组件组合方式。未找到匹配Product Design时，按当前代码环境、Common Design和明确标记的AI补齐确定实现方式。
+
+页面级 AI Coding 指导不得只写“使用按钮”“使用抽屉”“使用高级搜索”等泛化描述。涉及组件时，应尽可能明确：
+
+- 具体组件名称；
+- 关键使用方式或参数；
+- 复用对象；
+- 开发方式；
+- 新增实现与已有实现的差异。
+
+已有标准组件或已有业务组件能够满足需求时，禁止重新实现同类基础能力。
+
+# 核心工作流程
+
+## Step 1 输入与 Demo 范围
+
+- 提取用户提供的PRD、截图、原型、录屏、Demo代码、字段清单、业务说明或口头需求。
+- 若没有任何需求资料，先要求补充需求内容、Demo范围、代码范围或相关文档，禁止自行生成Demo方案。
+- 过滤Demo范围：仅将平台内展示、平台内操作、可演示前端流程进入Demo设计；线下流程、外部系统、技术实现、商业背景仅作为背景或待确认信息。
+- 若存在Demo代码环境、用户指定代码范围、Design Skill提到参考模块，或用户提到已有模块，读取相关代码作为输入，关注路由、菜单、相似页面、组件组织、Mock数据和已有交互习惯。
+
+## Step 2 产品识别 + Design Context
+
+- 识别当前需求所属产品、业务域、页面所属模块和可能命中的设计能力。
+- 调用Design Skill Resolver识别Common Design；若存在匹配Product Design，则同时识别并读取。
+- 先读取Common Design的SKILL.md和Reference Index；若存在匹配Product Design，再读取其SKILL.md、Coverage和Reference Index；按需求命中的能力选择Reference，不递归读取所有Reference。
+- Common Design解析成功后即可进入设计知识装配；若存在匹配Product Design，解析其Coverage中的`inherit / extend / override`关系，明确每项设计能力的最终知识来源。
+- 未找到匹配Product Design时，使用Common Design、PRD、用户输入和当前代码环境继续设计；对于页面组织、通用交互、展示字段等可合理推导的设计细节允许AI补齐，但真实业务事实、权限、状态流转、数量限制、业务规则等不可从现有输入确认的信息不得自行编造，必要时进入待确认问题。
+- 形成Design Context并在内部用于后续设计；仅当产品无法确定、已发现的Product Design存在选择歧义、关键Reference缺失或规则冲突未明确时，进入待确认问题或停止页面拆解。
+
+## Step 3 核心用户、场景、目标
+
+- 简要概述需求要解决的问题，不强制限制为一句话。
+- 读取 [体验目标撰写规范](references/01-workflow/02-experience-goal-writing.md)，输出3条体验目标和画面感。
+- 识别1-2个主要用户角色；如果只有1个岗位只输出1个，如果超过2个且确实都是主要角色，可最多输出3个。
+- 提炼3-5个核心场景与功能映射，不输出故事版和各子场景未来旅程。
+
+## Step 4 页面导航 + 页面总览
+
+- 读取 [Demo设计规格](references/01-workflow/03-demo-design-spec.md)，基于Design Context拆解页面导航和页面总览。
+- 先判断功能属于独立业务旅程、菜单级能力、Tab级能力，还是依附于已有页面的轻量入口。
+- 输出页面总览前，必须先为每个页面形成内部“页面类型决策表”，记录业务场景、PRD/用户约束、Product Design是否覆盖、Common Design候选模板、已验证代码证据、最终页面类型、决策理由和未决问题；页面类型不确定且会影响用户旅程或页面结构时，进入待确认问题。
+- 页面总览表按导航层级列出一级菜单、二级菜单、三级菜单、Tab页面、详情页、弹窗、抽屉和必要下钻页面。
+- 每个页面必须说明页面ID、页面名称、页面类型、导航路径、打开方式、页面目标、主要内容、关键操作和初步复用方向；初步复用方向仅可写复用已有页面、参考已有框架、新增页面或待详细设计确认。详细开发方式、具体组件和实现差异必须在HTML页面级AI Coding指导中确定。
+- 页面类型必须使用已读取Common Design、匹配Product Design或已验证代码中真实存在的标准类型名称；业务描述不得直接充当页面类型。标准类型无法覆盖时，标记为“自定义页面类型”，并说明继承的基础模板、扩展内容和差异原因。
+- 对话框主体只输出到页面总览表，禁止继续展开逐页设计、交互细节、Mock数据或完整AI Coding提示词。
+
+## Step 5 待确认
+
+- 页面总览表输出后，必须先输出待确认问题，并等待用户确认；这是生成HTML说明书前的强制卡点。
+- 待确认问题来自Design Context、页面总览、导航结构、页面容器、用户旅程闭环、关键业务规则、代码环境和Design Skill冲突。
+- 最多10个，优先3-6个；只保留影响整体设计、导航结构、页面容器、核心旅程、关键规则、权限边界或Coding实现的问题。
+- 每个问题必须包含：待确认问题、影响范围、当前默认假设。
+- 无关键待确认问题时，明确写“暂无关键待确认问题，按当前页面总览继续生成HTML说明书”，然后可继续Step 6。
+
+## Step 6 HTML 说明书
+
+- 用户确认待确认问题后，先判断确认结果是否影响Step 4的导航和页面总览；若影响，必须重新输出更新版导航结构和页面总览表。
+- 生成HTML详细设计前，重新检查当前Design Context是否覆盖本阶段实际需要的设计能力，包括页面类型、表格、表单、交互、状态、文案术语、组件映射以及产品级业务组件和复用规则。
+- 若页面总览确定后出现新的设计能力，通过Design Skill Resolver按需补充对应Common Design / Product Design Reference；禁止默认认为Step 2读取的Design Context已经覆盖详细设计阶段全部知识。
+- HTML中的每项页面结构、内容区块、交互规则、状态规则、术语、组件选择和底部操作区布局，都必须可追溯到已读取的Common Design / Product Design Reference、PRD、用户确认、已验证代码或明确标记的AI补齐；不得仅因已识别Common Design就默认其所有规则已被使用。
+- 绘制HTML线框图前，必须先选择已读取的页面类型模板，再填入业务内容；不得根据页面名称或业务内容自由拼装结构。线框图必须继承当前页面类型或容器形态对应的Common Design页面模板结构，并继承其中的底部操作区位置、按钮顺序和布局规则。底部操作区属于页面模板结构硬约束；除非PRD、用户确认或匹配Product Design明确覆盖，不得将同一操作区按钮拆分为左右两侧，也不得自行混用页面、抽屉、弹窗等不同容器的按钮位置规则。
+- 生成HTML前，对每页执行“页面类型 → 模板结构 → layout → 内容区块 → wireframe → 组件与交互 → 页面级AI Coding指导”一致性校验；任一环节与已选模板不一致时，先修正页面设计或明确覆盖依据，不得直接生成HTML。
+- 生成页面级AI Coding指导前，读取 [Coding指导与执行规范](references/01-workflow/04-interaction-coding-guidelines.md) 中的Coding输出规则，并基于Design Context确定具体组件、复用对象和开发方式。
+- 页面级AI Coding指导必须明确“开发项、开发方式、开发描述”，涉及组件时明确具体组件名称；涉及已有页面、模块或业务组件时明确复用对象。
+- 将逐页设计说明、页面内容区块、交互逻辑、状态规则、Mock数据和AI Coding指导整理为结构化JSON。
+- 调用脚本生成HTML：`python scripts/generate_demo_spec_html.py --input ./demo-spec.json --output ./demo-design-spec.html`。
+- HTML默认直接输出到项目根目录，禁止写入已有文件夹；仅当用户明确指定其他位置时才使用指定路径。
+- HTML标题使用“XX需求设计说明书”；左侧目录只包含总览和按页面层级组织的页面目录，不包含待确认问题。
+
+## Step 7 Coding Plan
+
+- HTML生成后，提醒用户查看HTML页面内容；若用户反馈HTML需调整，先更新JSON并重新生成HTML，再输出Coding Plan。
+- Coding Plan以最新HTML中的页面级AI Coding指导作为直接实现基线，不在本阶段重新设计页面结构、重新选择组件或重新改变开发方式。
+- 开始Coding Plan前，结合当前代码环境核对HTML中指定的已有页面、模块、业务组件和复用对象是否真实存在，以及实际路径、接口和使用方式是否一致。对“复用已有页面”或“参考已有框架”，必须核对对应页面的容器结构、步骤条、工具栏、底部按钮位置、关键交互和组件组织，并在Coding Plan中写明实际复用范围与新增差异。
+- 若HTML指定的复用对象无法找到、实际实现与HTML描述不一致或无法满足需求，先报告差异并获得确认，不得自行改为全新开发。
+- Coding Plan必须覆盖：输入来源、导航路径、全新开发页面、参考已有页面、复用对象、新增实现功能点、Mock策略、页面开发顺序和风险点。
+- Coding Plan必须逐项映射HTML页面级AI Coding指导，不得遗漏、合并或自行改写开发项。
+- 只有用户明确同意后，才进入Coding Execution。
+
+## Step 8 Coding Execution
+
+- 按HTML左侧页面目录和页面层级拆分Coding任务，一个页面完成并自检后，再开始下一个页面。
+- 先开发父级主页面，再开发新增、编辑、详情、弹窗、抽屉或下钻页面，确保入口和跳转链路可运行。
+- 每页开发前核对Design Context、HTML页面说明、页面级Coding指导、复用对象和Mock数据要求。
+- 每页完成后告知用户已完成哪个页面、接下来开发哪个页面。
+- 所有页面完成后，告知用户“Demo已开发完毕，请告知有哪些需要调整的”。
+
+## Step 9 Verification
+
+- 读取 [质量自检机制与规则](references/01-workflow/05-quality-and-rules.md)，执行输出边界、Design Context、页面总览、HTML说明书、Coding Plan和Coding结果检查。
+- 验证HTML说明书是否生成在项目根目录、页面总览与HTML逐页说明是否一致、页面结构与Design Context是否一致。
+- 验证Coding实现是否落实HTML页面级开发项、复用策略、页面结构、关键字段、操作、状态、边界和Mock数据。
+- 若用户反馈Coding效果不好，先判断问题来源是需求理解、Design Context、HTML说明书、代码实现、业务规范还是组件复用策略，再决定回到对应步骤修正。
+
+# 输出 Contract
+
+- 对话框输出：需求与Demo范围、核心用户与场景、Design Context摘要、导航结构、页面总览表、待确认问题、HTML文件路径、Coding Plan和Coding执行进度。
+- HTML输出：总览页、导航结构、页面总览表、逐页页面目标、页面基础信息、页面内容区块、Wireframe / ASCII线框图、底部操作、页面级AI Coding指导、Mock数据要求。
+- Coding Plan输出：输入来源、Design Context使用方式、页面开发顺序、复用对象、新增开发项、风险与确认点。
+- Coding Execution输出：按页开发进度、页面级验证结论、下一页计划、最终完成说明。
+- 禁止在对话框展开HTML逐页详情、完整交互规则、完整Mock数据和完整AI Coding提示词。
+
+# Quality Gate
+
+- Design Skill Resolver已执行，Common Design已识别；若存在匹配Product Design，其Coverage关系已识别。
+- Common Design已完成“查询 → SKILL.md读取 → metadata校验”；不存在Common Design时未进入正式页面设计。
+- Design Context已形成，且每项命中设计能力的知识来源明确。
+- HTML中的页面级AI Coding指导已在生成HTML前完成组件映射和复用对象判断；Coding Plan未重新改变已确认HTML中的组件、复用对象和开发方式。
+- HTML线框图已校验页面模板结构一致性；页面类型、模板结构、layout、内容区块、wireframe、组件与交互、页面级AI Coding指导均一致；含底部操作区的页面、抽屉、弹窗等容器均继承已读取Common Design中的按钮位置与顺序规则，不存在无依据的左右分置或跨容器规则混用。
+- 每页均已形成页面类型决策记录；页面类型来自已读取的标准类型或已验证代码，自定义页面类型已说明继承模板与差异；声明复用已有页面或参考已有框架的页面已完成容器结构、步骤条、工具栏、底部按钮位置和关键交互的代码参考验收。
+- 未使用未匹配产品的Product Design；未通过产品缩写或普通关键词猜测Product Design。
+- 页面总览与HTML逐页说明中的页面ID、页面名称、页面类型、导航路径和入口方式一致。
+- 待确认问题已在HTML前输出并等待用户确认；未把待确认问题写入HTML。
+- HTML文件默认生成在项目根目录，未写入已有文件夹。
+- HTML说明书覆盖逐页设计、交互逻辑、边界状态、Mock数据和AI Coding指导。
+- Coding Plan逐项映射HTML页面级AI Coding指导，并获得用户确认后才执行。
+- Coding Execution按页面顺序推进，每页完成后做页面级核对。
+
+# 本 Skill 自有资源
+
+- HTML generator：见 [scripts/generate_demo_spec_html.py](scripts/generate_demo_spec_html.py)，读取结构化Demo设计JSON并生成HTML说明书；参数为`--input`和`--output`，默认输出到项目根目录下的HTML文件。
+- HTML template：见 [assets/demo-spec-template.html](assets/demo-spec-template.html)，HTML说明书模板，由脚本读取并注入设计数据。
+- workflow/output schemas：
+  - [references/01-workflow/00-design-skill-resolver.md](references/01-workflow/00-design-skill-resolver.md)：识别、选择和装配Common Design与Product Design。
+  - [references/01-workflow/01-output-templates.md](references/01-workflow/01-output-templates.md)：对话框输出、HTML JSON和Coding计划模板。
+  - [references/01-workflow/02-experience-goal-writing.md](references/01-workflow/02-experience-goal-writing.md)：体验目标与画面感撰写规范。
+  - [references/01-workflow/03-demo-design-spec.md](references/01-workflow/03-demo-design-spec.md)：页面拆解、页面总览和HTML逐页设计规格。
+  - [references/01-workflow/04-interaction-coding-guidelines.md](references/01-workflow/04-interaction-coding-guidelines.md)：代码环境核验、Mock数据、Coding指导和逐页执行规则。
+  - [references/01-workflow/05-quality-and-rules.md](references/01-workflow/05-quality-and-rules.md)：质量自检、禁止事项和Coding执行检查。
+  - [references/05-examples/demo-design-examples.md](references/05-examples/demo-design-examples.md)：HTML说明书输入JSON与页面说明示例。
