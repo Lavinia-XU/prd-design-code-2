@@ -25,7 +25,7 @@ metadata:
 - 先读取 [Design Skill Resolver](references/01-workflow/00-design-skill-resolver.md)，再开始页面设计。
 - Design Skill必须通过当前环境的Skill查询能力实际发现并读取；未实际查询和读取的Skill一律视为不存在，禁止假设或虚构。
 - 只有完成“查询 → 读取SKILL.md → metadata校验”的Design Skill，才允许进入当前任务的Design Context并作为设计依据。
-- Common Design：优先识别声明`skill_type: common-design`的Skill，作为通用设计规则来源；若只有一个Common Design，直接使用。Common Design是进入正式页面设计阶段的必需依赖：未查询到Common Design，或查询到但无法成功读取其SKILL.md时，不得使用AI自身通用设计知识模拟Common Design；应停止进入正式页面设计，并提示缺少Common Design。
+- Common Design：优先识别声明`skill_type: common-design`的Skill，作为通用设计规则来源；若只有一个Common Design，直接使用。Common Design是进入正式页面设计阶段的必需依赖：未查询到Common Design，或查询到但无法成功读取其SKILL.md时，不得使用AI自身通用设计知识模拟Common Design；应停止进入正式页面设计，并提示缺少Common Design。读取Common Design时必须明确读取组件映射表和页面模板里的推荐组件，用于页面骨架、筛选区、表格字段、表单字段和反馈类组件映射。
 - Product Design：作为可选增强依赖。先识别当前需求所属产品或当前可确认的产品范围，再寻找`skill_type: product-design`且`product_id`与其一致的Skill；禁止仅通过Skill名称中是否出现XDR、SASE、DSP等缩写判断。未找到匹配Product Design属于正常执行状态，不阻断流程、不作为待确认问题，进入Common Design模式继续执行，并结合当前代码环境和AI补齐。只有产品身份会影响导航、业务规则或Product Design选择，且无法根据现有输入确定时，才进入待确认问题；发现多个可能匹配的Product Design且无法判断选择对象时，也进入待确认问题。
 - Resolver只决定设计知识来源，不负责具体页面设计；读取采用“索引优先、Reference按需”的方式：
   - Common Design：先读取SKILL.md及Design Capability Index / Reference Index；
@@ -38,6 +38,7 @@ metadata:
   - `override`：以Product Design规则作为最终设计规则；仅当Product Design明确要求参考Common Design时，再读取对应Common Design细节。
 - Design Context：页面拆解前必须形成当前任务Design Context，至少包含：
   - 已解析的Common Design；
+  - 已读取的组件映射表、页面模板推荐组件和产品设计特殊组件；
   - 当前产品或当前可确认的产品范围；
   - 本需求命中的Design Capability；
   - 每项能力的实际知识来源；
@@ -63,10 +64,12 @@ metadata:
 
 生成页面级 AI Coding 指导前，必须结合以下信息确定最终实现方式：
 
-1. 若存在匹配Product Design，读取其中明确的产品已有页面、业务模块、业务组件和复用规则；
+1. 若存在匹配Product Design，读取其中明确的产品已有页面、业务模块、业务组件、产品专属组件和复用规则；
 2. 当前代码环境中可验证的已有页面、组件、路由、交互和实现方式；
-3. Common Design 中的标准组件映射与组件使用规范；
+3. Common Design 中的页面模板推荐组件、标准组件映射与组件使用规范；
 4. 前述能力均无法满足需求时，才允许新增实现。
+
+组件信息读取与使用优先级固定为：产品设计专属组件 > Common Design页面模板组件 > Common Design组件映射表 > 通用iDux组件语义推断。
 
 若存在匹配Product Design，其用于说明产品中应优先复用什么；当前代码环境用于验证该复用对象是否真实存在以及实际实现方式；Common Design 用于提供标准基础组件和通用组件组合方式。未找到匹配Product Design时，按当前代码环境、Common Design和明确标记的AI补齐确定实现方式。
 
@@ -77,6 +80,8 @@ metadata:
 - 复用对象；
 - 开发方式；
 - 新增实现与已有实现的差异。
+
+生成HTML说明书前必须完成组件识别与映射：每个页面都必须有页面骨架组件映射；筛选区必须说明使用一个`IxProSearch`高级搜索组件还是多个独立组件组合，多个独立组件也必须列出对应iDux组件名称；表格字段中非纯文本列必须标注组件名称；表单项必须标注控件组件；操作列、状态列、反馈类交互必须标注组件。
 
 已有标准组件或已有业务组件能够满足需求时，禁止重新实现同类基础能力。
 
@@ -94,14 +99,14 @@ metadata:
 - 识别当前需求所属产品、业务域、页面所属模块和可能命中的设计能力。
 - 调用Design Skill Resolver识别Common Design；若存在匹配Product Design，则同时识别并读取。
 - 先读取Common Design的SKILL.md和Reference Index；若存在匹配Product Design，再读取其SKILL.md、Coverage和Reference Index；按需求命中的能力选择Reference，不递归读取所有Reference。
-- Common Design解析成功后即可进入设计知识装配；若存在匹配Product Design，解析其Coverage中的`inherit / extend / override`关系，明确每项设计能力的最终知识来源。
+- Common Design解析成功后即可进入设计知识装配；必须读取组件映射表和页面模板里的推荐组件，形成当前任务的组件映射基线；若存在匹配Product Design，解析其Coverage中的`inherit / extend / override`关系，并读取产品设计里的特殊组件，明确每项设计能力和组件能力的最终知识来源。
 - 未找到匹配Product Design时，使用Common Design、PRD、用户输入和当前代码环境继续设计；对于页面组织、通用交互、展示字段等可合理推导的设计细节允许AI补齐，但真实业务事实、权限、状态流转、数量限制、业务规则等不可从现有输入确认的信息不得自行编造，必要时进入待确认问题。
 - 形成Design Context并在内部用于后续设计；仅当产品无法确定、已发现的Product Design存在选择歧义、关键Reference缺失或规则冲突未明确时，进入待确认问题或停止页面拆解。
 
 ## Step 3 核心用户、场景、目标
 
 - 简要概述需求要解决的问题，不强制限制为一句话。
-- 读取 [体验目标撰写规范](references/01-workflow/02-experience-goal-writing.md)，输出3条体验目标和画面感。
+- 输出需求概括和主要用户、场景，不再在HTML输出体验目标和Demo范围判断。
 - 识别1-2个主要用户角色；如果只有1个岗位只输出1个，如果超过2个且确实都是主要角色，可最多输出3个。
 - 提炼3-5个核心场景与功能映射，不输出故事版和各子场景未来旅程。
 
@@ -130,9 +135,9 @@ metadata:
 - 若页面总览确定后出现新的设计能力，通过Design Skill Resolver按需补充对应Common Design / Product Design Reference；禁止默认认为Step 2读取的Design Context已经覆盖详细设计阶段全部知识。
 - HTML中的每项页面结构、内容区块、交互规则、状态规则、术语、组件选择和底部操作区布局，都必须可追溯到已读取的Common Design / Product Design Reference、PRD、用户确认、已验证代码或明确标记的AI补齐；不得仅因已识别Common Design就默认其所有规则已被使用。
 - 绘制HTML线框图前，必须先选择已读取的页面类型模板，再填入业务内容；不得根据页面名称或业务内容自由拼装结构。线框图必须继承当前页面类型或容器形态对应的Common Design页面模板结构，并继承其中的底部操作区位置、按钮顺序和布局规则。底部操作区属于页面模板结构硬约束；除非PRD、用户确认或匹配Product Design明确覆盖，不得将同一操作区按钮拆分为左右两侧，也不得自行混用页面、抽屉、弹窗等不同容器的按钮位置规则。
-- 生成HTML前，对每页执行“页面类型 → 模板结构 → layout → 内容区块 → wireframe → 组件与交互 → 页面级AI Coding指导”一致性校验；任一环节与已选模板不一致时，先修正页面设计或明确覆盖依据，不得直接生成HTML。
+- 生成HTML前，对每页执行“页面类型 → 模板结构 → layout → 页面骨架组件映射 → 内容区块 → 筛选/表格/表单字段组件映射 → wireframe → 组件与交互 → 页面级AI Coding指导”一致性校验；任一环节与已选模板不一致时，先修正页面设计或明确覆盖依据，不得直接生成HTML。
 - 生成页面级AI Coding指导前，读取 [Coding指导与执行规范](references/01-workflow/04-interaction-coding-guidelines.md) 中的Coding输出规则，并基于Design Context确定具体组件、复用对象和开发方式。
-- 页面级AI Coding指导必须明确“开发项、开发方式、开发描述”，涉及组件时明确具体组件名称；涉及已有页面、模块或业务组件时明确复用对象。
+- 页面级AI Coding指导必须明确“开发项、开发方式、开发描述”；不重复罗列字段级组件明细，但必须写明组件使用规则：严格按照页面区块、表格字段、表单字段中标注的组件名称开发，不得用原生HTML或其他组件替代；页面模板中已指定的标题栏、筛选区、表格、分页、弹窗、抽屉等组件，应按模板组件骨架实现；字段表中标注为标签、链接按钮、状态徽标、下拉选择、日期范围、开关等组件的内容，必须使用对应iDux或公司封装组件实现；未标注组件名称的普通文本/数字字段，可按常规文本渲染，如实现时发现交互含义，应回查Common Design组件映射表补齐。涉及已有页面、模块或业务组件时明确复用对象。
 - 将逐页设计说明、页面内容区块、交互逻辑、状态规则、Mock数据和AI Coding指导整理为结构化JSON。
 - 调用脚本生成HTML：`python scripts/generate_demo_spec_html.py --input ./demo-spec.json --output ./demo-design-spec.html`。
 - HTML默认直接输出到项目根目录，禁止写入已有文件夹；仅当用户明确指定其他位置时才使用指定路径。
@@ -194,7 +199,7 @@ metadata:
 - workflow/output schemas：
   - [references/01-workflow/00-design-skill-resolver.md](references/01-workflow/00-design-skill-resolver.md)：识别、选择和装配Common Design与Product Design。
   - [references/01-workflow/01-output-templates.md](references/01-workflow/01-output-templates.md)：对话框输出、HTML JSON和Coding计划模板。
-  - [references/01-workflow/02-experience-goal-writing.md](references/01-workflow/02-experience-goal-writing.md)：体验目标与画面感撰写规范。
+  - [references/01-workflow/02-experience-goal-writing.md](references/01-workflow/02-experience-goal-writing.md)：已保留为历史参考，不再用于HTML输出生成。
   - [references/01-workflow/03-demo-design-spec.md](references/01-workflow/03-demo-design-spec.md)：页面拆解、页面总览和HTML逐页设计规格。
   - [references/01-workflow/04-interaction-coding-guidelines.md](references/01-workflow/04-interaction-coding-guidelines.md)：代码环境核验、Mock数据、Coding指导和逐页执行规则。
   - [references/01-workflow/05-quality-and-rules.md](references/01-workflow/05-quality-and-rules.md)：质量自检、禁止事项和Coding执行检查。

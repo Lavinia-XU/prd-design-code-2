@@ -168,12 +168,40 @@ def markdown_coding_guide(guide, mode="overview"):
     return "\n\n".join(parts)
 
 
+def normalize_component_rows(rows):
+    normalized = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            normalized.append(row)
+            continue
+        item = dict(row)
+        if not item.get("iduxComponent"):
+            item["iduxComponent"] = item.get("componentName") or item.get("idux") or item.get("idux_component") or ""
+        normalized.append(item)
+    return normalized
+
+
+def markdown_restore_requirement(restore):
+    if isinstance(restore, dict):
+        parts = []
+        description = restore.get("description") or restore.get("requirement") or ""
+        if description:
+            parts.append(str(description))
+        components = normalize_component_rows(restore.get("components") or restore.get("componentMapping") or [])
+        if components:
+            parts.append(markdown_table(components, [("area", "页面骨架区域"), ("iduxComponent", "组件名称"), ("source", "组件来源"), ("usage", "还原要求")]))
+        return "\n\n".join(parts)
+    if isinstance(restore, list):
+        return markdown_list(restore)
+    return str(restore)
+
+
 def markdown_page(page, inherited_nav=None):
     nav = page_navigation(page, inherited_nav)
     lines = [f"## {page_label(page)}", "", f"- 页面目标：{page.get('purpose', '')}", f"- 页面类型：{page.get('type', '')}", f"- 页面布局：{page.get('layout', '')}", "", "### 导航位置", markdown_table([nav], [("primary", "一级导航"), ("secondary", "二级导航"), ("tertiary", "三级导航"), ("tab", "Tab页面")])]
     restore = page.get("restoreRequirement") or page.get("pageTypeRestoreRequirement")
     if restore:
-        lines.extend(["", "### 页面类型还原要求", str(restore)])
+        lines.extend(["", "### 页面类型还原要求", markdown_restore_requirement(restore)])
     wireframe = page.get("wireframe") or page.get("asciiWireframe")
     if isinstance(wireframe, dict):
         wireframe = wireframe.get("ascii") or wireframe.get("text") or ""
@@ -185,39 +213,22 @@ def markdown_page(page, inherited_nav=None):
         for key, label in [("toolbar", "工具栏/筛选搜索"), ("actions", "按钮/可点击操作"), ("displayRules", "展示形式与取值范围"), ("interactionNotes", "交互、反馈与状态说明"), ("validationRules", "校验、联动与边界状态")]:
             if block.get(key):
                 lines.extend([f"**{label}**", markdown_list(block.get(key))])
+        if block.get("filterComponent") or block.get("filterComponentDescription"):
+            lines.extend(["**筛选区组件说明**", markdown_list([item for item in [block.get("filterComponent"), block.get("filterComponentDescription")] if item])])
         if block.get("filterFields"):
-            lines.extend(["**筛选字段**", markdown_table(block.get("filterFields"), [("name", "字段名称"), ("component", "组件/筛选方式"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])])
+            lines.extend(["**筛选字段**", markdown_table(normalize_component_rows(block.get("filterFields")), [("name", "字段名称"), ("component", "组件/筛选方式"), ("iduxComponent", "iDux组件名称"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])])
         if block.get("tableFields") or block.get("columns"):
-            lines.extend(["**表格字段**", markdown_table(block.get("tableFields") or block.get("columns"), [("name", "字段名称"), ("display", "展示形式"), ("description", "说明")])])
+            lines.extend(["**表格字段**", markdown_table(normalize_component_rows(block.get("tableFields") or block.get("columns")), [("name", "字段名称"), ("display", "展示形式"), ("iduxComponent", "组件名称"), ("description", "说明")])])
         if block.get("formFields"):
-            lines.extend(["**表单字段**", markdown_table(block.get("formFields"), [("name", "字段名称"), ("component", "组件类型"), ("required", "必填"), ("default", "默认值"), ("rules", "选项/规则"), ("tips", "提示信息或联动关系")])])
+            lines.extend(["**表单字段**", markdown_table(normalize_component_rows(block.get("formFields")), [("name", "字段名称"), ("component", "组件类型"), ("iduxComponent", "iDux组件名称"), ("required", "必填"), ("default", "默认值"), ("rules", "选项/规则"), ("tips", "提示信息或联动关系")])])
     lines.extend(["", "### 底部操作", markdown_list(page.get("footerActions", [])), "", markdown_coding_guide(page.get("codingGuide", {}), mode="page")])
     return "\n\n".join(lines)
-
-
-def render_experience_goal(overview):
-    goal = overview.get("experienceGoal")
-    if isinstance(goal, dict):
-        goals = goal.get("goals") or goal.get("practicalGoals") or []
-        scene = goal.get("scene") or goal.get("visualScene") or ""
-        return f"""
-          <div class="stack">
-            <div><strong>目标选项</strong>{list_html(goals)}</div>
-            <div><strong>画面感</strong><p>{esc(scene) if scene else '暂无'}</p></div>
-          </div>
-        """
-    if isinstance(goal, list):
-        return list_html(goal)
-    legacy_goal = overview.get("demoGoal", "")
-    if legacy_goal:
-        return f"<p>{esc(legacy_goal)}</p>"
-    return "<p class=\"muted\">暂无体验目标</p>"
 
 
 def render_markdown_source(data, pages):
     overview = data.get("overview", {})
     page_cols = [("module", "业务模块"), ("id", "页面ID"), ("name", "页面名称"), ("type", "页面类型"), ("purpose", "页面用途"), ("entry", "入口方式"), ("interaction", "关键交互"), ("designSource", "设计来源"), ("codingMode", "编码方式")]
-    sections = [("overview", f"# {data.get('title', '需求设计说明书')}\n\n## 概览\n\n### 需求概括\n{overview.get('summary', '')}\n\n### Demo范围判断\n{markdown_table(overview.get('scopeTable', []), [('task', '需求内容 / 任务'), ('scope', '所属范围'), ('include', '是否进入Demo'), ('handling', '处理方式')])}\n\n### 页面总览表\n{markdown_table(overview.get('pageOverview', []), page_cols)}\n\n{markdown_coding_guide(data.get('codingGuide', {}), mode='overview')}")]
+    sections = [("overview", f"# {data.get('title', '需求设计说明书')}\n\n## 概览\n\n### 需求概括\n{overview.get('summary', '')}\n\n### 页面总览表\n{markdown_table(overview.get('pageOverview', []), page_cols)}\n\n{markdown_coding_guide(data.get('codingGuide', {}), mode='overview')}")]
     for page, inherited_nav in pages:
         base = "page-" + slug(page.get("id", ""))
         sections.append((base, markdown_page(page, inherited_nav)))
@@ -234,14 +245,11 @@ def build_view(content):
 
 def render_overview(data):
     overview = data.get("overview", {})
-    scope_cols = [("task", "需求内容 / 任务"), ("scope", "所属范围"), ("include", "是否进入Demo"), ("handling", "处理方式")]
     page_cols = [("module", "业务模块"), ("id", "页面ID"), ("name", "页面名称"), ("type", "页面类型"), ("purpose", "页面用途"), ("entry", "入口方式"), ("interaction", "关键交互"), ("designSource", "设计来源"), ("codingMode", "编码方式")]
     return f"""
     <section class="page" id="overview">
       <h1>{esc(data.get('title', '需求设计说明书'))}</h1>
       <div class="card"><h2>需求概括</h2><p>{esc(overview.get('summary', ''))}</p></div>
-      <div class="card"><h2>体验目标</h2>{render_experience_goal(overview)}</div>
-      <div class="card"><h2>Demo范围判断</h2>{table_html(overview.get('scopeTable', []), scope_cols)}</div>
       <div class="card"><h2>导航结构</h2>{render_tree(data.get('navigation', []))}</div>
       <div class="card"><h2>页面总览表</h2>{table_html(overview.get('pageOverview', []), page_cols)}</div>
       <div class="card"><h2>总结性AI Coding指导</h2>{render_coding_summary(data.get('codingGuide', {}))}</div>
@@ -275,6 +283,7 @@ def normalize_legacy_fields(items, mode):
             rows.append({
                 "name": name.strip() if sep else text,
                 "component": "",
+                "iduxComponent": "",
                 "required": "",
                 "default": "",
                 "rules": rest.strip() if sep else "",
@@ -284,6 +293,7 @@ def normalize_legacy_fields(items, mode):
             rows.append({
                 "name": name.strip() if sep else text,
                 "display": "",
+                "iduxComponent": "",
                 "description": rest.strip() if sep else "",
             })
     return rows
@@ -292,8 +302,8 @@ def normalize_legacy_fields(items, mode):
 def render_block_detail(block):
     details = []
     block_type = str(block.get("type") or block.get("title") or "")
-    table_columns = [("name", "字段名称"), ("display", "展示形式"), ("description", "说明")]
-    form_columns = [("name", "字段名称"), ("component", "组件类型"), ("required", "必填"), ("default", "默认值"), ("rules", "选项/规则"), ("tips", "提示信息或联动关系")]
+    table_columns = [("name", "字段名称"), ("display", "展示形式"), ("iduxComponent", "组件名称"), ("description", "说明")]
+    form_columns = [("name", "字段名称"), ("component", "组件类型"), ("iduxComponent", "iDux组件名称"), ("required", "必填"), ("default", "默认值"), ("rules", "选项/规则"), ("tips", "提示信息或联动关系")]
 
     html_text = optional_list_block("工具栏/筛选搜索", block.get("toolbar", []))
     if html_text:
@@ -301,15 +311,21 @@ def render_block_detail(block):
 
     filter_mode = block.get("filterMode") or block.get("filterType")
     filter_source = block.get("filterSource")
-    filter_fields = block.get("filterFields") or []
-    if filter_mode or filter_source or filter_fields:
+    filter_component = block.get("filterComponent") or block.get("filterContainerComponent")
+    filter_component_description = block.get("filterComponentDescription")
+    filter_fields = normalize_component_rows(block.get("filterFields") or [])
+    if filter_mode or filter_source or filter_component or filter_component_description or filter_fields:
         filter_intro = []
         if filter_source:
             filter_intro.append(f"筛选方式来源：{esc(filter_source)}")
         if filter_mode:
             filter_intro.append(f"筛选组件类型：{esc(filter_mode)}")
-        filter_html = optional_list_block("筛选区说明", filter_intro)
-        filter_table = optional_table_block("筛选字段", filter_fields, [("name", "字段名称"), ("component", "组件/筛选方式"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])
+        if filter_component:
+            filter_intro.append(f"筛选容器/组合组件：{esc(filter_component)}")
+        if filter_component_description:
+            filter_intro.append(f"组件使用说明：{esc(filter_component_description)}")
+        filter_html = optional_list_block("筛选区组件说明", filter_intro)
+        filter_table = optional_table_block("筛选字段", filter_fields, [("name", "字段名称"), ("component", "组件/筛选方式"), ("iduxComponent", "iDux组件名称"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])
         details.append(filter_html + filter_table)
 
     table_fields = block.get("tableFields") or block.get("columns") or []
@@ -321,10 +337,10 @@ def render_block_detail(block):
         elif "表格" in block_type or "列表" in block_type:
             table_fields = normalize_legacy_fields(legacy_fields, "table")
 
-    html_text = optional_table_block("表格字段", table_fields, table_columns)
+    html_text = optional_table_block("表格字段", normalize_component_rows(table_fields), table_columns)
     if html_text:
         details.append(html_text)
-    html_text = optional_table_block("表单字段", form_fields, form_columns)
+    html_text = optional_table_block("表单字段", normalize_component_rows(form_fields), form_columns)
     if html_text:
         details.append(html_text)
 
@@ -428,6 +444,17 @@ def render_restore_requirement(page):
     requirement = page.get("restoreRequirement") or page.get("pageTypeRestoreRequirement")
     if not requirement:
         return ""
+    if isinstance(requirement, dict):
+        parts = ["<h3>页面类型还原要求</h3>"]
+        description = requirement.get("description") or requirement.get("requirement") or ""
+        if description:
+            parts.append(f"<p>{esc(description)}</p>")
+        components = normalize_component_rows(requirement.get("components") or requirement.get("componentMapping") or [])
+        if components:
+            parts.append(table_html(components, [("area", "页面骨架区域"), ("iduxComponent", "组件名称"), ("source", "组件来源"), ("usage", "还原要求")]))
+        return "".join(parts)
+    if isinstance(requirement, list):
+        return f"<h3>页面类型还原要求</h3>{list_html(requirement)}"
     return f"<h3>页面类型还原要求</h3><p>{esc(requirement)}</p>"
 
 
@@ -475,84 +502,49 @@ def render_page(page, inherited_nav=None):
         </div>
         """)
     return f"""
-    <section class="page" id="{esc('page-' + slug(page.get('id', '')))}">
-      <h1>{esc(page.get('id', ''))}-{esc(page.get('name', '未命名页面'))}</h1>
-      <div class="card"><h2>页面目标</h2><p>{esc(page.get('purpose', ''))}</p></div>
-      <div class="card"><h2>页面基础信息</h2><dl class="meta-list"><dt>页面类型</dt><dd>{esc(page.get('type', ''))}</dd><dt>页面布局</dt><dd>{esc(page.get('layout', ''))}</dd></dl><h3>导航位置</h3>{render_navigation_table(page, inherited_nav)}{render_restore_requirement(page)}</div>
-      <div class="card"><h2>Wireframe / ASCII 线框图</h2>{render_wireframe(page) or '<p class="muted">暂无</p>'}</div>
-      <div class="card"><h2>页面内容区块</h2>{''.join(sections) or '<p class="muted">暂无</p>'}</div>
+    <section class="page" id="page-{esc(slug(page.get('id', 'page')))}">
+      <h1>{esc(page_label(page))}</h1>
+      <div class="card"><h2>页面基础信息</h2><dl class="meta-list"><dt>页面目标</dt><dd>{esc(page.get('purpose', ''))}</dd><dt>页面类型</dt><dd>{esc(page.get('type', ''))}</dd><dt>页面布局</dt><dd>{esc(page.get('layout', ''))}</dd></dl>{render_navigation_table(page, inherited_nav)}{render_restore_requirement(page)}</div>
+      {render_wireframe(page)}
+      <div class="card"><h2>页面内容区块</h2>{''.join(sections)}</div>
       <div class="card"><h2>底部操作</h2>{render_footer_actions(page)}</div>
       <div class="card"><h2>页面级AI Coding指导</h2>{render_page_coding(page)}</div>
     </section>
     """
 
 
-def flatten_pages(pages, inherited_nav=None):
-    result = []
-    for page in pages:
-        current_nav = page_navigation(page, inherited_nav)
-        result.append((page, current_nav))
-        result.extend(flatten_pages(page.get("children", []) or [], current_nav))
-    return result
-
-
 def page_label(page):
-    page_id = str(page.get("id") or "").strip()
-    name = str(page.get("name") or "未命名页面").strip()
+    page_id = page.get("id") or ""
+    name = page.get("name") or "未命名页面"
     return f"{page_id}-{name}" if page_id else name
 
 
-def build_page_nav(pages, level=0):
-    parts = []
-    for page in pages:
-        label = page_label(page)
-        target = esc("page-" + slug(page.get("id", label)))
-        indent = min(level + 1, 4)
-        parts.append(f"<button class=\"nav-item nav-indent-{indent}\" data-target=\"{target}\">{esc(label)}</button>")
-        children = page.get("children") or []
-        if children:
-            parts.extend(build_page_nav(children, level + 1))
-    return parts
-
-
-def build_nav(data):
-    parts = ["<div class=\"nav-section\">总览</div>", "<button class=\"nav-item\" data-target=\"overview\">总览</button>"]
-    parts.append("<div class=\"nav-section\">页面目录</div>")
-    parts.extend(build_page_nav(data.get("pages", [])))
-    return "".join(parts)
+def build_navigation(data, pages):
+    entries = ["<div class='nav-section'>总览</div>", "<button class='nav-item active' data-target='overview'>总览</button>"]
+    for page, _ in pages:
+        entries.append(f"<button class='nav-item nav-indent-1' data-target='page-{esc(slug(page.get('id', 'page')))}'>{esc(page_label(page))}</button>")
+    return "\n".join(entries)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate demo design specification HTML from JSON.")
-    parser.add_argument("--input", required=True, help="Path to demo spec JSON file")
-    parser.add_argument("--output", required=True, help="Path to output HTML file")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    input_path = Path(args.input)
-    output_path = Path(args.output)
-    if not input_path.exists():
-        print(json.dumps({"status": "error", "message": f"Input file not found: {input_path}"}, ensure_ascii=False))
-        return
+    input_path = Path(args.input).resolve()
+    output_path = Path(args.output).resolve()
+    data = json.loads(input_path.read_text(encoding="utf-8"))
+    pages = [(page, page.get("navigation")) for page in data.get("pages", [])]
 
-    try:
-        data = json.loads(input_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        print(json.dumps({"status": "error", "message": f"Invalid JSON: {exc}"}, ensure_ascii=False))
-        return
-
-    skill_dir = Path(__file__).resolve().parents[1]
-    template_path = skill_dir / "assets" / "demo-spec-template.html"
-    template = template_path.read_text(encoding="utf-8")
-
-    title = data.get("title") or "需求设计说明书"
-    pages = flatten_pages(data.get("pages", []))
-    source_content = render_markdown_source(data, pages)
-    preview_content = render_preview_content(data, pages)
-    html_text = template.replace("{{TITLE}}", esc(title)).replace("{{NAV}}", build_nav(data)).replace("{{SOURCE_CONTENT}}", source_content).replace("{{PREVIEW_CONTENT}}", preview_content)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    template = Path(__file__).resolve().parents[1] / "assets" / "demo-spec-template.html"
+    html_text = template.read_text(encoding="utf-8")
+    html_text = html_text.replace("{{TITLE}}", esc(data.get("title", "需求设计说明书")))
+    html_text = html_text.replace("{{NAV}}", build_navigation(data, pages))
+    html_text = html_text.replace("{{SOURCE_CONTENT}}", render_markdown_source(data, pages))
+    html_text = html_text.replace("{{PREVIEW_CONTENT}}", render_preview_content(data, pages))
     output_path.write_text(html_text, encoding="utf-8")
-    print(json.dumps({"status": "success", "output": str(output_path), "pages": len(pages)}, ensure_ascii=False))
+    print(json.dumps({"status": "success", "output": str(output_path)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
