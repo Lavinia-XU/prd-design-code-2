@@ -165,7 +165,7 @@ metadata:
 - 生成页面级AI Coding指导前，读取 [Coding指导与执行规范](references/01-workflow/04-interaction-coding-guidelines.md) 中的Coding输出规则，并基于Design Context确定具体组件、复用对象和开发方式。
 - 页面级AI Coding指导必须使用结构化开发项：HTML 展示“编号、开发对象、开发方式、复用与代码映射、实现要求、完成判定”六列表格，JSON 使用固定字段（id/scope/name/mode/mappingRef/mappingStatus/target/sourceRefs/dependencies/requirements/states/mockContract/acceptanceCriteria/prohibitedChanges），页面 codingGuide 固定为 pageContext + implementationRules + items + mockContract + stateContract + acceptanceCriteria + outOfScope，字段规范详见 [Coding指导与执行规范](references/01-workflow/04-interaction-coding-guidelines.md)；开发项须有稳定 ID，Coding Plan、Coding Execution 和 Verification 使用相同 ID 追踪，不得改名、合并或遗漏。不重复罗列字段级组件明细，但必须写明组件使用规则：严格按照页面区块、表格字段、表单字段中标注的组件名称开发，不得用原生HTML或其他组件替代；页面模板中已指定的标题栏、筛选区、表格、分页、弹窗、抽屉等组件，应按模板组件骨架实现；字段表中标注为标签、链接按钮、状态徽标、下拉选择、日期范围、开关等组件的内容，必须使用对应iDux或公司封装组件实现；未标注组件名称的普通文本/数字字段，可按常规文本渲染，如实现时发现交互含义，应回查Common Design组件映射表补齐。涉及已有页面、模块或业务组件时明确复用对象。
 - 将逐页设计说明、页面内容区块、交互逻辑、状态规则、Mock数据和AI Coding指导整理为结构化JSON。
-- 调用脚本生成HTML：`python scripts/generate_demo_spec_html.py --input ./demo-spec.json --output ./demo-design-spec.html`。
+- 调用脚本生成HTML：`python scripts/generate_demo_spec_html.py --input ./demo-spec.json --output ./demo-design-spec.html --template-registry references/02-template-contracts/common-design-template-registry.json`。生成器默认 strict 模式，生成前自动执行模板契约校验，校验失败禁止写入 HTML；仅兼容旧 JSON 时使用 `--allow-legacy-wireframe`。
 - HTML默认直接输出到项目根目录，禁止写入已有文件夹；仅当用户明确指定其他位置时才使用指定路径。
 - HTML标题使用“XX需求设计说明书”；左侧目录只包含总览和按页面层级组织的页面目录，不包含待确认问题。
 
@@ -259,6 +259,19 @@ metadata:
 
 视觉基线结果写入 Design Context 和页面总览；视觉参考页面与视觉基线范围必须在 Implementation Mapping Gate 中完成核验：属于已有页面体系但未完成映射时，Gate 不通过，不得进入 Coding。Coding 阶段必须对照该基线实现，Verification 必须包含视觉基线回归。
 
+# 强制模板契约与线框校验
+
+每个页面必须绑定标准页面模板，结构化 wireframe 是唯一可信来源；未通过模板契约校验不得生成 HTML，不得进入 Implementation Mapping Gate 和 Coding。
+
+- 页面类型与模板绑定：
+  - 每个页面必须绑定标准页面模板 templateId，禁止只写业务自定义名称。允许的 templateId：page-table-basic、page-table-tree、page-table-overview、page-table-overview-tree、page-list-modal、page-list-drawer、page-detail-drilldown、page-detail-drawer、page-detail-log、page-form-config、page-form-stepper、page-form-modal、page-form-drawer、page-dashboard。
+  - 需求无法匹配标准模板时，使用 `templateId: custom` + `baseTemplateId`（某个标准模板）+ `customReason` + `override.source`（用户确认 / PRD / Product Design / 已有代码）+ `override.affectedRules`（overrideJustification，说明覆盖了哪些模板约束）。不能仅通过 type 字段写“下钻配置表单页”这类未注册页面类型。
+- 导航类型：每个需要区分导航的页面必须填写 navigationType（left-shaped / l-shaped）；没有明确依据时默认 left-shaped，但必须写 navigationTypeStatus: assumed、navigationTypeSource: AI 补齐、navigationTypeNote: 当前默认依据。
+- 模板契约 templateContract：每个页面必须填写，至少包含 templateId、baseTemplateId、navigationType、templateSource、requiredRegions、optionalRegions、regionOrder、footerContract、componentContract、wireframeContract、override（enabled/source/reason/affectedRules）。字段规范与示例见 [HTML输出模板](references/01-workflow/01-output-templates.md) 与 [HTML逐页设计说明](references/01-workflow/03-demo-design-spec.md)。
+- 闭环要求：页面类型、模板结构、layout、sections、wireframe、footerActions、组件映射、codingGuide 必须形成闭环。禁止以下情况：页面 type 与 templateId 不一致；基础表格页没有 Toolbar/Table/Pagination；弹窗列表页没有 Modal 外壳、关闭入口和列表主体；抽屉列表页没有 Drawer 外壳、对象上下文、Toolbar、Table；步骤条配置页没有 Stepper；多步骤页面只有一张总线框图；存在 footerActions 但 wireframe 没有底部操作区；wireframe 出现的区块没有 sections 或 templateContract 依据；sections 声明的必需区块没有出现在 wireframe；footer 对齐与模板不一致且无 override 记录。
+- 生成门禁：HTML 生成前自动执行 [validate_demo_spec.py](scripts/validate_demo_spec.py) 模板契约校验；校验失败禁止写入 HTML；validationStatus 非 passed 时不得进入 Implementation Mapping Gate，wireframe 结构校验失败时不得输出 Coding Plan。校验规则与错误码由校验脚本输出，模板注册表见 [common-design-template-registry.json](references/02-template-contracts/common-design-template-registry.json)。
+- legacy 兼容：纯字符串 wireframe 只允许作为 legacy 输入，必须进入兼容模式警告；strict 模式下不得生成 HTML，`--allow-legacy-wireframe` 仅用于兼容旧 JSON，且 HTML 顶部必须显示“本说明书使用旧版自由文本线框，未完成模板契约校验，不得作为 Coding 基线”。
+
 # 输出 Contract
 
 - 对话框输出：需求与Demo范围、核心用户与场景、Design Context摘要、导航结构、页面总览表、待确认问题、HTML文件路径、Coding Plan和Coding执行进度。
@@ -284,12 +297,16 @@ metadata:
 - Implementation Mapping Gate 由 AI 自动执行；输出 Coding Plan 前已输出统一映射表，所有必需复用对象均为“已验证”；必需对象为“阻塞”时未继续输出 Coding Plan；“待核验”只存在于 Gate 执行前，不作为 Gate 完成后的结果。
 - 设计说明书与真实代码的差异已完成分级处理：实现层差异已记录并更新 Coding Plan，设计层差异已修正 HTML 并重新获得用户确认，业务事实缺失已进入待确认问题；未将实现层差异静默改为全新开发。
 - 视觉基线已完成核对：属于已有业务主题或页面体系的需求已对照真实参考页面做视觉回归；功能、交互、组件复用和视觉回归均通过后，才宣称任务完成。
+- 模板契约校验通过后才生成 HTML；HTML 生成成功不代表校验通过，必须明确展示 validationStatus: passed；validationStatus 非 passed 时未进入 Implementation Mapping Gate，wireframe 结构校验失败时未输出 Coding Plan。
+- 每个页面已绑定标准 templateId 或 custom 模板（含 baseTemplateId、customReason 与 override.affectedRules）；navigationType 已声明或按 assumed + source 处理；未使用未注册页面类型名称；未在 strict 模式下静默通过 legacy 自由文本线框。
 - Coding Plan逐项映射HTML页面级AI Coding指导，并获得用户确认后才执行。
 - Coding Execution按页面顺序推进，每页完成后做页面级核对；未在共享页面骨架冻结前并发 Coding。
 
 # 本 Skill 自有资源
 
-- HTML generator：见 [scripts/generate_demo_spec_html.py](scripts/generate_demo_spec_html.py)，读取结构化Demo设计JSON并生成HTML说明书；参数为`--input`和`--output`，默认输出到项目根目录下的HTML文件。
+- HTML generator：见 [scripts/generate_demo_spec_html.py](scripts/generate_demo_spec_html.py)，读取结构化Demo设计JSON并生成HTML说明书；参数为`--input`、`--output`和`--template-registry`，默认 strict 模式，生成前自动执行模板契约校验，校验失败禁止写入 HTML；`--allow-legacy-wireframe` 仅用于兼容旧 JSON。
+- Template validator：见 [scripts/validate_demo_spec.py](scripts/validate_demo_spec.py)，校验模板契约与线框结构（25 项规则），输出结构化 JSON 错误与修复建议；参数为`--input`、`--template-registry`和`--strict`，校验失败返回非 0 exit code。
+- Template registry：见 [references/02-template-contracts/common-design-template-registry.json](references/02-template-contracts/common-design-template-registry.json)，14 个标准页面模板的必需区域、必需组件、footer 契约与变体规则，规则来源于 Common Design。
 - HTML template：见 [assets/demo-spec-template.html](assets/demo-spec-template.html)，HTML说明书模板，由脚本读取并注入设计数据。
 - workflow/output schemas：
   - [references/01-workflow/00-design-skill-resolver.md](references/01-workflow/00-design-skill-resolver.md)：识别、选择和装配Common Design与Product Design。
@@ -299,3 +316,4 @@ metadata:
   - [references/01-workflow/04-interaction-coding-guidelines.md](references/01-workflow/04-interaction-coding-guidelines.md)：代码环境核验、Implementation Mapping Gate、Mock数据、Coding指导和逐页执行规则。
   - [references/01-workflow/05-quality-and-rules.md](references/01-workflow/05-quality-and-rules.md)：质量自检、禁止事项和Coding执行检查。
   - [references/05-examples/demo-design-examples.md](references/05-examples/demo-design-examples.md)：HTML说明书输入JSON与页面说明示例。
+- Tests：见 [tests/test_validate_demo_spec.py](tests/test_validate_demo_spec.py)，模板契约校验器的 15 个回归用例（合法页面通过、缺分页/标题栏/关闭入口、footer 对齐、Stepper 组件、步骤变体、custom override、未注册类型、section 一致性、partial 路径、legacy 警告），运行方式 `python3 -m unittest discover -s tests`。

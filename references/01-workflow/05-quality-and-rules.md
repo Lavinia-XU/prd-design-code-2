@@ -146,6 +146,59 @@
 - 未经过代码核验的开发项，target.path 是否留空并标记 pending 或 blocked，未编造路径。
 - 每个开发项是否包含完成判定（acceptanceCriteria）；缺少完成判定的开发项是否已补齐。
 
+### 1.13 模板契约与线框校验检查
+
+- 每个页面是否绑定标准 templateId（page-table-basic / page-table-tree / page-table-overview / page-table-overview-tree / page-list-modal / page-list-drawer / page-detail-drilldown / page-detail-drawer / page-detail-log / page-form-config / page-form-stepper / page-form-modal / page-form-drawer / page-dashboard），或使用 custom 模板并填写 baseTemplateId、customReason、overrideSource、overrideJustification。
+- 页面 type 是否与 templateId 一致，是否使用未注册页面类型名称。
+- 每个需要区分导航的页面是否填写 navigationType（left-shaped / l-shaped）；无明确依据时是否填写 navigationTypeStatus=assumed、navigationTypeSource、navigationTypeNote。
+- 页面是否填写 templateContract，且 templateId、layout、sections、wireframe、footerActions、componentContract、codingGuide 是否形成闭环；是否存在模板必需区域缺失、wireframe 区块无依据、sections 必需区块未出现在 wireframe。
+- 结构化 wireframe 是否为唯一可信来源；多步骤/多 Tab 页面是否包含主结构图和每一步完整变体图，变体是否保留公共页面外壳。
+- footerActions 对齐方式与按钮顺序是否与模板 footer 契约一致；不一致时是否有 override 记录。
+- 生成 HTML 前是否运行 validate_demo_spec.py 且 validationStatus=passed；校验失败时是否未生成 HTML、未进入 Implementation Mapping Gate、未输出 Coding Plan。
+
+### 1.14 自动化校验规则登记表与扩展流程
+
+所有 Demo JSON 自动校验规则统一登记在 `scripts/validate_demo_spec.py` 顶部的 `RULES` 表中，按固定流程扩展；禁止为单一校验另建脚本或独立文档。模板/数据类规则（requiredRegions、footer、variants、requiredComponents）直接维护 `references/02-template-contracts/common-design-template-registry.json`，无需改动校验代码。
+
+| 规则 | 校验项 | 数据来源 | 测试覆盖 |
+| --- | --- | --- | --- |
+| RULE-01 | JSON schema 基础结构 | 01-output-templates.md 数据契约 | test_valid_table_basic_passes |
+| RULE-02 | 页面 ID 唯一性 | 01-output-templates.md | — |
+| RULE-03 | overview.pageOverview 与 pages 一致 | 01-output-templates.md | — |
+| RULE-04 | templateId 已注册 | common-design-template-registry.json | test_unregistered_type_fails |
+| RULE-05 | custom 模板 override 完整性 | SKILL.md 强制模板契约与线框校验 | test_custom_without_override_fails / test_valid_override_passes |
+| RULE-06 | type 与 templateId 一致 | SKILL.md 强制模板契约与线框校验 | — |
+| RULE-07 | 禁止未注册页面类型名称 | SKILL.md 强制模板契约与线框校验 | test_unregistered_type_fails |
+| RULE-08 | navigationType 在模板支持范围 | common-design-template-registry.json | — |
+| RULE-09 | 必需页面骨架区块存在 | common-design-template-registry.json | test_missing_title_bar_fails / test_missing_pagination_fails |
+| RULE-10 | requiredRegions 全部出现在 wireframe.regions | 03-demo-design-spec.md 结构化线框契约 | test_missing_pagination_fails |
+| RULE-11 | regionOrder 与模板顺序一致 | common-design-template-registry.json | — |
+| RULE-12 | requiredComponents 已声明 | common-design-template-registry.json | test_stepper_uses_tabs_fails |
+| RULE-13 | sections 与 wireframe.regions 双向一致 | SKILL.md 强制模板契约与线框校验 | test_section_wireframe_mismatch_fails |
+| RULE-14 | table 页面含 Toolbar/Table/Pagination | common-design-template-registry.json | test_missing_pagination_fails / test_table_page_as_card_fails |
+| RULE-15 | modal 页面含外壳/关闭入口/底部操作 | common-design-template-registry.json | test_modal_missing_close_fails |
+| RULE-16 | drawer 页面含外壳/对象上下文/列表/关闭入口 | common-design-template-registry.json | test_drawer_footer_alignment_fails |
+| RULE-17 | stepper 页面含 Stepper | common-design-template-registry.json | test_stepper_uses_tabs_fails |
+| RULE-18 | 多步骤页面含主结构图与每步变体 | SKILL.md 强制模板契约与线框校验 | test_multi_step_missing_variants_fails |
+| RULE-19 | 变体保留公共页面外壳 | SKILL.md 强制模板契约与线框校验 | test_multi_step_missing_variants_fails |
+| RULE-20 | footerActions 与模板对齐规则一致 | common-design-template-registry.json | test_drawer_footer_alignment_fails / test_form_config_footer_right_fails |
+| RULE-21 | footerActions 按钮顺序一致 | common-design-template-registry.json | test_form_config_footer_right_fails |
+| RULE-22 | wireframe 与页面内容区块一致 | SKILL.md 强制模板契约与线框校验 | — |
+| RULE-23 | codingGuide 含稳定开发项 ID | 04-interaction-coding-guidelines.md | — |
+| RULE-24 | partial/unavailable 时 target.path 为空 | SKILL.md 代码可用状态 | test_partial_path_not_empty_fails |
+| RULE-25 | 禁止 Vue3 专属绑定语法作为实现要求 | 04-interaction-coding-guidelines.md | — |
+| RULE-26 | 非普通文本字段声明组件映射 | 03-demo-design-spec.md | — |
+| RULE-27 | legacy 自由文本线框兼容模式 | SKILL.md 强制模板契约与线框校验（兼容模式） | test_legacy_wireframe_warning_non_strict |
+
+新增校验规则的固定流程：
+
+1. 在 `validate_demo_spec.py` 的 `RULES` 表登记一条（ruleId 唯一、来源文档、实现方法）；
+2. 实现对应 `check_xxx` 方法，输出统一结构化错误（pageId/errorCode/severity/path/message/expected/actual/sourceRef/fixSuggestion）；
+3. 在 `run()` 中按顺序注册调用；
+4. 在 `tests/test_validate_demo_spec.py` 补充用例；
+5. 在本登记表同步一条；
+6. 若规则涉及 HTML 展示或门禁，同步更新 `generate_demo_spec_html.py` 与 SKILL.md Quality Gate。
+
 ## 2. 禁止事项
 
 1. 用户未提供任何资料就自行生成需求分析或Demo方案。
@@ -173,6 +226,11 @@
 23. 忽略业务设计Skill或已有代码中明确规定的组件习惯、筛选方式和页面容器。
 24. HTML设计说明书未执行组件识别：页面骨架缺少组件映射，筛选区未说明`IxProSearch`或独立组件组合，表格非普通文本列未标注组件名称，表单项未标注iDux组件名称，操作列、状态列、反馈类交互未标注组件。
 25. 在AI Coding提示词中要求实现真实后端、数据库或外部系统联调，除非用户明确要求。
+26. 页面未绑定标准模板或 custom 模板（含 baseTemplateId 与 overrideJustification）就直接生成 HTML 或进入 Coding。
+27. 页面 type 使用未注册页面类型名称，或页面 type 与 templateId 不一致。
+28. 在 strict 模式下使用纯字符串 wireframe 静默通过校验，或校验失败后仍生成 HTML、进入 Implementation Mapping Gate、输出 Coding Plan。
+29. 多步骤/多 Tab 页面只画一张总线框图，没有为每个步骤/Tab 输出完整变体图；或变体未保留公共页面外壳。
+30. footerActions 对齐方式或按钮顺序与模板契约不一致时未记录 override 来源就继续开发。
 26. 在 `partial` / `unavailable` 状态下虚构真实文件路径、组件路径、Props、Events 或调用方式，或把未实际读取的代码标记为 `verified`。
 27. 未经 Implementation Mapping Gate 直接开始 Coding，或在共享页面外壳、公共组件、实现映射尚未冻结时并发开发多个页面。
 28. 把实现层差异静默改为全新开发，或发现设计层差异后不修正 HTML 并重新确认就直接 Coding。

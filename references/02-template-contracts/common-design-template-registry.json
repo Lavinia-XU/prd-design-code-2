@@ -1,0 +1,172 @@
+{
+  "version": "1.0",
+  "sourceBase": "common-design/references/03-design-template/01-page-types.md",
+  "description": "Common Design 标准页面模板注册表。所有规则来源于 Common Design 页面类型定义，禁止凭 AI 经验新增模板结构。页面必须绑定本注册表中的 templateId，无法匹配时必须使用 custom 模板并填写 override。",
+  "templates": {
+    "page-table-basic": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-table-basic",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "filter", "toolbar", "table", "pagination"],
+      "requiredComponents": {
+        "table": ["IxTable"],
+        "pagination": ["IxPagination"],
+        "toolbar": ["IxButton"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-table-tree": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-table-tree",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "tree", "filter", "toolbar", "table", "pagination"],
+      "requiredComponents": {
+        "tree": ["IxTree"],
+        "table": ["IxTable"],
+        "pagination": ["IxPagination"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-table-overview": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-table-overview",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "overview", "filter", "toolbar", "table", "pagination"],
+      "requiredComponents": {
+        "overview": ["IxCard"],
+        "table": ["IxTable"],
+        "pagination": ["IxPagination"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-table-overview-tree": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-table-overview-tree",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "overview", "tree", "filter", "toolbar", "table", "pagination"],
+      "requiredComponents": {
+        "overview": ["IxCard"],
+        "tree": ["IxTree"],
+        "table": ["IxTable"],
+        "pagination": ["IxPagination"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-list-modal": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-list-modal",
+      "navigationTypes": [],
+      "requiredRegions": ["modal-shell", "modal-header", "filter", "table", "pagination", "modal-footer"],
+      "requiredComponents": {
+        "shell": ["IxModal"],
+        "table": ["IxTable"],
+        "pagination": ["IxPagination"],
+        "footer": ["IxButton"]
+      },
+      "footer": {"required": true, "alignment": "right", "buttonOrder": ["cancel", "confirm"]},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-list-drawer": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-list-drawer",
+      "navigationTypes": [],
+      "requiredRegions": ["drawer-shell", "drawer-header", "object-context", "filter", "table", "pagination", "drawer-footer"],
+      "requiredComponents": {
+        "shell": ["IxDrawer"],
+        "table": ["IxTable"],
+        "pagination": ["IxPagination"],
+        "footer": ["IxButton"]
+      },
+      "footer": {"required": true, "alignment": "right", "buttonOrder": ["cancel", "confirm"]},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-detail-drilldown": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-detail-drilldown",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "object-info", "detail-content", "action-area"],
+      "requiredComponents": {
+        "title-bar": ["IxHeader-prefix"],
+        "object-info": ["IxDescriptions"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-detail-drawer": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-detail-drawer",
+      "navigationTypes": [],
+      "requiredRegions": ["drawer-shell", "drawer-header", "object-summary", "detail-content", "drawer-footer"],
+      "requiredComponents": {
+        "shell": ["IxDrawer"],
+        "object-summary": ["IxDescriptions"]
+      },
+      "footer": {"required": true, "alignment": "right", "buttonOrder": ["close", "confirm"]},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-detail-log": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-detail-log",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "log-filter", "log-content", "pagination"],
+      "requiredComponents": {
+        "title-bar": ["IxHeader-prefix"],
+        "log-content": ["IxTimeline", "IxTable"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-form-config": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-form-config",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "form-content", "footer"],
+      "requiredComponents": {
+        "form": ["IxForm", "IxFormItem"],
+        "footer": ["IxButton"]
+      },
+      "footer": {"required": true, "alignment": "left", "buttonOrder": ["cancel", "confirm"]},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-form-stepper": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-form-stepper",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "stepper", "step-content", "footer"],
+      "requiredComponents": {
+        "title-bar": ["IxHeader-prefix"],
+        "stepper": ["IxStepper", "IxProFormStepper"],
+        "footer": ["IxButton"]
+      },
+      "footer": {"required": true, "alignment": "left", "buttonOrder": ["previous", "next-or-complete", "cancel"]},
+      "variants": {"required": true, "rule": "主结构图 + 每个步骤一张完整变体图"}
+    },
+    "page-form-modal": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-form-modal",
+      "navigationTypes": [],
+      "requiredRegions": ["modal-shell", "modal-header", "form-content", "modal-footer"],
+      "requiredComponents": {
+        "shell": ["IxModal"],
+        "form": ["IxForm", "IxFormItem"],
+        "footer": ["IxButton"]
+      },
+      "footer": {"required": true, "alignment": "right", "buttonOrder": ["cancel", "confirm"]},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-form-drawer": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-form-drawer",
+      "navigationTypes": [],
+      "requiredRegions": ["drawer-shell", "drawer-header", "form-content", "drawer-footer"],
+      "requiredComponents": {
+        "shell": ["IxDrawer"],
+        "form": ["IxForm", "IxFormItem"],
+        "footer": ["IxButton"]
+      },
+      "footer": {"required": true, "alignment": "right", "buttonOrder": ["cancel", "confirm"]},
+      "variants": {"required": false, "rule": ""}
+    },
+    "page-dashboard": {
+      "source": "common-design/references/03-design-template/01-page-types.md#page-dashboard",
+      "navigationTypes": ["left-shaped", "l-shaped"],
+      "requiredRegions": ["global-navigation", "title-bar", "overview", "dashboard-content", "filter"],
+      "requiredComponents": {
+        "overview": ["IxCard", "IxStatistic"]
+      },
+      "footer": {"required": false, "alignment": "", "buttonOrder": []},
+      "variants": {"required": false, "rule": ""}
+    }
+  }
+}

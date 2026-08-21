@@ -1,7 +1,16 @@
 import argparse
 import html
 import json
+import subprocess
+import sys
 from pathlib import Path
+
+_TEMPLATE_REGISTRY_PATH = Path(__file__).resolve().parents[1] / "references" / "02-template-contracts" / "common-design-template-registry.json"
+_TEMPLATE_REGISTRY = {}
+try:
+    _TEMPLATE_REGISTRY = json.loads(_TEMPLATE_REGISTRY_PATH.read_text(encoding="utf-8")).get("templates", {})
+except Exception:
+    _TEMPLATE_REGISTRY = {}
 
 
 def esc(value):
@@ -316,8 +325,18 @@ def render_markdown_source(data, pages):
     return "".join(f'<section class="markdown-section" id="source-{esc(base)}"><pre class="markdown-source">{esc(text)}</pre></section>' for base, text in sections)
 
 
-def render_preview_content(data, pages):
-    return render_overview(data) + "\n" + "\n".join(render_page(page, inherited_nav) for page, inherited_nav in pages)
+def render_preview_content(data, pages, validation_info=None):
+    validation_info = validation_info or {}
+    banner = ""
+    status = validation_info.get("status", "unknown")
+    if status == "passed":
+        banner = "<div class=\"validation-banner\" style=\"background:#e6ffed;border:1px solid #1a7f37;padding:8px 12px;margin-bottom:12px;border-radius:4px;\"><strong>validationStatus: passed</strong> — 模板契约校验通过，本说明书可作为 Coding 基线。</div>"
+    else:
+        if validation_info.get("legacy"):
+            banner = "<div class=\"validation-banner\" style=\"background:#fff8e1;border:1px solid #b45309;padding:8px 12px;margin-bottom:12px;border-radius:4px;\"><strong>validationStatus: warning</strong> — 本说明书使用旧版自由文本线框，未完成模板契约校验，不得作为 Coding 基线。</div>"
+        else:
+            banner = "<div class=\"validation-banner\" style=\"background:#fdecea;border:1px solid #c62828;padding:8px 12px;margin-bottom:12px;border-radius:4px;\"><strong>validationStatus: failed</strong> — 模板契约校验未通过，不得作为 Coding 基线。</div>"
+    return banner + render_overview(data) + "\n" + "\n".join(render_page(page, inherited_nav) for page, inherited_nav in pages)
 
 
 def build_view(content):
@@ -546,19 +565,70 @@ def render_wireframe(page):
         note = str(wireframe_data.get("note") or wireframe_data.get("description") or page.get("wireframeNote") or page.get("wireframeDescription") or "").strip()
         layout_source = str(wireframe_data.get("layoutSource") or "").strip()
         regions = wireframe_data.get("regions") or []
-        if not wireframe_text and not note and not layout_source and not regions:
+        variants = wireframe_data.get("variants") or []
+        if not wireframe_text and not note and not layout_source and not regions and not variants:
             return ""
         parts = ["<div class=\"wireframe-block\"><h3>Wireframe / ASCII 线框图</h3>"]
+        template_contract = page.get("templateContract") or {}
+        template_id = str(template_contract.get("templateId") or wireframe_data.get("templateId") or "").strip()
+        navigation_type = str(template_contract.get("navigationType") or wireframe_data.get("navigationType") or "").strip()
+        template_source = str(template_contract.get("templateSource") or wireframe_data.get("layoutSource") or "").strip()
+        if template_id:
+            template = _TEMPLATE_REGISTRY.get(template_id, {})
+            parts.append("<div class=\"template-contract\"><h4>模板契约</h4>")
+            parts.append(f"<p><strong>templateId：</strong>{esc(template_id)}"
+                         + (f"（custom，base：{esc(template_contract.get('baseTemplateId', ''))}）" if template_id == "custom" else "")
+                         + f"　<strong>navigationType：</strong>{esc(navigation_type or '-')}</p>")
+            if template_source:
+                parts.append(f"<p><strong>templateSource：</strong>{esc(template_source)}</p>")
+            required = template.get("requiredRegions") or []
+            actual_ids = [str(r.get("templateRegion") or r.get("id") or "") for r in regions]
+            missing = [r for r in required if r not in actual_ids]
+            if required:
+                parts.append(f"<p><strong>模板必需区域：</strong>{esc('、'.join(required))}</p>")
+            if regions:
+                parts.append(f"<p><strong>实际线框区域：</strong>{esc('、'.join(actual_ids) if actual_ids else '-')}</p>")
+            consistency = "一致" if not missing else f"缺失：{esc('、'.join(missing))}"
+            style = "color:#c00;font-weight:bold" if missing else "color:#1a7f37;font-weight:bold"
+            parts.append(f"<p><strong>区域一致性：</strong><span style=\"{style}\">{consistency}</span></p>")
+            footer_contract = template.get("footer") or {}
+            footer_actions = page.get("footerActions") or []
+            if footer_contract:
+                align = footer_contract.get("alignment") or "-"
+                footer_note = f"对齐方式：{align}（{'必填' if footer_contract.get('required') else '可选'}）"
+                if footer_actions:
+                    acts = "、".join(str(a.get("label") or a.get("name") or a.get("text") or a.get("type") or "") for a in footer_actions)
+                    footer_note += f"；页面按钮：{acts}"
+                override = (template_contract.get("override") or {}).get("enabled")
+                footer_style = "color:#c00;font-weight:bold" if (footer_contract.get("required") and not footer_actions and not override) else ""
+                parts.append(f"<p><strong>底部操作契约：</strong><span style=\"{footer_style}\">{esc(footer_note)}</span></p>")
+            parts.append("</div>")
         if note:
             parts.append(f"<p>{esc(note)}</p>")
-        if layout_source:
+        if layout_source and not template_source:
             parts.append(f"<p><strong>线框图结构依据：</strong>{esc(layout_source)}</p>")
         if regions:
             parts.append(table_html(regions, [
-                ("区域名称", "name"),
+                ("区域ID", "id"),
+                ("模板区域", "templateRegion"),
                 ("位置", "position"),
+                ("必需", "required"),
+                ("组件", "component"),
                 ("内容", "content"),
             ]))
+        if variants:
+            parts.append("<h4>线框变体（Wireframe Variants）</h4>")
+            for variant in variants:
+                vid = esc(str(variant.get("id") or ""))
+                preserve = esc("、".join(variant.get("preserveRegions") or []))
+                changed = esc("、".join(variant.get("changedRegions") or []))
+                var_ascii = esc(str(variant.get("ascii") or "").strip())
+                parts.append(f"<div class=\"variant-block\"><p><strong>变体 {vid}</strong>"
+                             + (f"　保留区域：{preserve}" if preserve else "")
+                             + (f"　变化区域：{changed}" if changed else "") + "</p>")
+                if var_ascii:
+                    parts.append(f"<pre>{var_ascii}</pre>")
+                parts.append("</div>")
         if wireframe_text:
             parts.append(f"<pre>{esc(wireframe_text)}</pre>")
         parts.append("</div>")
@@ -611,6 +681,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--template-registry", default=str(_TEMPLATE_REGISTRY_PATH))
+    parser.add_argument("--allow-legacy-wireframe", action="store_true")
     args = parser.parse_args()
 
     input_path = Path(args.input).resolve()
@@ -618,14 +690,38 @@ def main():
     data = json.loads(input_path.read_text(encoding="utf-8"))
     pages = [(page, page.get("navigation")) for page in data.get("pages", [])]
 
+    strict = not args.allow_legacy_wireframe
+
+    validator = Path(__file__).resolve().parent / "validate_demo_spec.py"
+    cmd = [sys.executable, str(validator), "--input", str(input_path), "--template-registry", str(args.template_registry)]
+    if strict:
+        cmd.append("--strict")
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+    report = {}
+    if proc.stdout.strip():
+        try:
+            report = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            report = {}
+    validation_ok = bool(report.get("valid", False))
+    validation_errors = report.get("errors") or []
+
+    if strict and not validation_ok:
+        sys.stderr.write(proc.stdout or "")
+        print(json.dumps({"status": "validation_failed", "errorCount": len(validation_errors), "errors": validation_errors}, ensure_ascii=False))
+        sys.exit(1)
+
+    legacy = any(isinstance(p.get("wireframe"), str) or isinstance(p.get("asciiWireframe"), str) for p in data.get("pages", []))
+    validation_info = {"status": "passed" if validation_ok and not legacy else ("warning" if not strict else "failed"), "legacy": legacy}
+
     template = Path(__file__).resolve().parents[1] / "assets" / "demo-spec-template.html"
     html_text = template.read_text(encoding="utf-8")
     html_text = html_text.replace("{{TITLE}}", esc(data.get("title", "需求设计说明书")))
     html_text = html_text.replace("{{NAV}}", build_navigation(data, pages))
     html_text = html_text.replace("{{SOURCE_CONTENT}}", render_markdown_source(data, pages))
-    html_text = html_text.replace("{{PREVIEW_CONTENT}}", render_preview_content(data, pages))
+    html_text = html_text.replace("{{PREVIEW_CONTENT}}", render_preview_content(data, pages, validation_info))
     output_path.write_text(html_text, encoding="utf-8")
-    print(json.dumps({"status": "success", "output": str(output_path)}, ensure_ascii=False))
+    print(json.dumps({"status": "success", "validationStatus": validation_info["status"], "output": str(output_path)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

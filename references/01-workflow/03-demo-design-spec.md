@@ -404,6 +404,15 @@ HTML逐页页面基础信息中的导航位置表：
 
 每个页面在页面内容区块之后，必须补充`Wireframe / ASCII 线框图`，用于表达页面整体结构、主要区块、展示元素和操作区域。线框图不是视觉稿，不要求像素级精确，但必须让AI Coding能看懂页面容器关系、布局层级、关键字段、状态信息和按钮位置。若页面存在多个内容切换Tab，必须按每个Tab分别绘制对应内容区块的线框图，不要只画一个总图；如果页面同时存在步骤条等内容切换控件，也按同样方式处理，按每个步骤分别绘制对应内容区块的线框图。若是标题栏里的分层Tabs页标题，Tab仍然必须和标题同一行展示，不能下沉到内容区。
 
+生成HTML的JSON中，wireframe必须使用结构化对象作为唯一可信来源，不能只写自由文本；纯字符串wireframe仅作为legacy输入，进入兼容模式警告，strict模式下禁止生成HTML。结构化wireframe至少包含：
+
+- `templateId`、`navigationType`、`layoutSource`：绑定标准页面模板与导航类型；
+- `shell`：`globalNavigation`、`titleBar`（required/type/component）、`contentContainer`、`footer`（required/alignment/height）等页面外壳属性；
+- `regions`：区域数组，每项包含`id`、`templateRegion`（对应模板必需区域）、`position`、`required`、`component`、`content`；
+- `variants`：多步骤或Tab页面必须输出主结构图和每个步骤/Tab一张完整变体图，每张变体包含`preserveRegions`（保留公共外壳区域）与`changedRegions`（变化区域）及`ascii`。
+
+每个页面必须同时填写`templateContract`（templateId/baseTemplateId/navigationType/templateSource/requiredRegions/optionalRegions/regionOrder/footerContract/componentContract/wireframeContract/override），与结构化wireframe形成闭环；页面type、templateId、layout、sections、wireframe、footerActions、componentContract和codingGuide必须一致，禁止出现模板结构与线框结构冲突。模板注册表见references/02-template-contracts/common-design-template-registry.json，生成HTML前由scripts/validate_demo_spec.py自动校验，校验失败阻断HTML生成。
+
 线框图布局必须参考已读取的Common Design页面模板，以及用户资料、Product Design或已有代码中明确的页面类型结构；仅当已读取规则没有覆盖时，才根据页面目标选择常见B端页面骨架，再补充标题栏、表格工具栏等通用部件，最后填入当前业务元素。底部操作区的位置、按钮顺序和布局必须继承当前页面类型或容器形态对应的Common Design模板；除非PRD、用户确认或匹配Product Design明确覆盖，不得将同一操作区按钮拆分为左右两侧，也不得混用不同容器的布局规则。常见继承关系包括：
 
 - 基础表格页：标题栏、筛选/搜索、表格工具栏、表格、分页、行内操作。
@@ -555,3 +564,5 @@ HTML说明书标题必须是“XX需求设计说明书”。HTML采用“Markdow
 - HTML说明书是否包含标题、左侧目录、总览页和按页面层级组织的逐页内容；是否没有把待确认问题、全局交互规则页或独立Coding指导页放入HTML目录。
 - 代码可用状态是否标记并写入 Design Context；`partial` / `unavailable` 状态下是否未虚构真实代码对象，语义级对象是否标记“Coding 阶段待核验”。
 - 属于已有业务主题或页面体系时，是否已把真实参考页面作为视觉基线并写入 Design Context 和页面总览。
+- 每个页面是否已绑定标准 templateId（或 custom 模板且含 baseTemplateId、customReason、overrideSource、overrideJustification），并填写 templateContract；是否使用了未注册页面类型名称；页面 type、templateId、layout、sections、wireframe、footerActions、componentContract、codingGuide 是否形成闭环。
+- 结构化 wireframe 是否作为唯一可信来源（templateId/navigationType/shell/regions/variants 完整）；多步骤或 Tab 页面是否包含主结构图和每个步骤/Tab 一张完整变体图，变体是否保留公共页面外壳；footerActions 对齐与按钮顺序是否与模板契约一致或已有 override 记录；纯字符串 wireframe 是否已进入 legacy 警告。

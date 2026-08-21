@@ -162,9 +162,40 @@ python scripts/generate_demo_spec_html.py --input ./demo-spec.json --output ./de
       "navigation": {"primary": "数据安全", "secondary": "数据防泄密", "tertiary": "事件分析", "tab": ""},
       "purpose": "帮助安全运维人员查看事件概览并筛选定位风险事件。",
       "layout": "上方概览统计区 + 下方筛选表格区。",
+      "templateContract": {
+        "templateId": "page-table-overview",
+        "baseTemplateId": "",
+        "navigationType": "left-shaped",
+        "navigationTypeStatus": "assumed",
+        "navigationTypeSource": "AI补齐",
+        "navigationTypeNote": "概览表格页无明确导航依据时默认左侧菜单结构",
+        "templateSource": "common-design/references/03-design-template/01-page-types.md#page-table-overview",
+        "requiredRegions": ["global-navigation", "title-bar", "overview", "filter", "toolbar", "table", "pagination"],
+        "optionalRegions": [],
+        "regionOrder": ["global-navigation", "title-bar", "overview", "filter", "toolbar", "table", "pagination"],
+        "footerContract": {"required": false, "alignment": "", "buttonOrder": []},
+        "componentContract": {"overview": ["IxCard"], "table": ["IxTable"], "pagination": ["IxPagination"]},
+        "wireframeContract": {"variantsRequired": false},
+        "override": {"enabled": false, "source": "", "reason": "", "affectedRules": []}
+      },
       "restoreRequirement": {"description": "按Common Design概览表格页模板还原页面骨架，组件信息来自页面模板推荐组件。", "components": [{"area": "标题栏", "iduxComponent": "页面模板指定标题栏组件", "source": "Common Design页面模板", "usage": "承载页面标题和导出、刷新等页面级操作"}, {"area": "筛选区", "iduxComponent": "IxProSearch", "source": "Common Design页面模板", "usage": "承载事件查询条件"}, {"area": "表格", "iduxComponent": "IxTable", "source": "Common Design页面模板", "usage": "承载事件列表字段和行内操作"}, {"area": "分页", "iduxComponent": "IxPagination", "source": "Common Design页面模板", "usage": "承载列表分页"}]},
       "wireframeNote": "线框图先继承概览表格页模板，再填入事件分析的业务内容；布局来源为已读取的Common Design页面模板。",
-      "wireframe": "┌──────────────────────────────────────────────┐\n│ 页面标题行：事件分析            [导出] [刷新] │\n├──────────────────────────────────────────────┤\n│ 概览统计区：事件总数 | 待处置 | 高风险       │\n├──────────────────────────────────────────────┤\n│ 筛选工具栏：风险等级 时间范围 关键字 [查询] │\n│ 表格区：事件名称 | 风险等级 | 发现时间 | 操作 │\n│ 分页区：上一页 1 2 3 下一页                 │\n└──────────────────────────────────────────────┘",
+      "wireframe": {
+        "templateId": "page-table-overview",
+        "navigationType": "left-shaped",
+        "layoutSource": "Common Design page-table-overview",
+        "shell": {"globalNavigation": true, "titleBar": {"required": true, "type": "plain", "component": "页面模板指定标题栏组件"}, "contentContainer": {"required": true, "type": "page-content"}, "footer": {"required": false, "alignment": "", "height": "56px"}},
+        "regions": [
+          {"id": "global-nav", "templateRegion": "global-navigation", "position": "top", "required": true, "content": "全局导航"},
+          {"id": "title-bar", "templateRegion": "title-bar", "position": "top", "required": true, "content": "页面标题行：事件分析 [导出] [刷新]"},
+          {"id": "overview", "templateRegion": "overview", "position": "content-top", "required": true, "content": "概览统计区：事件总数 | 待处置 | 高风险"},
+          {"id": "filter", "templateRegion": "filter", "position": "content", "required": true, "content": "筛选工具栏：风险等级 时间范围 关键字 [查询]"},
+          {"id": "table", "templateRegion": "table", "position": "content", "required": true, "content": "表格区：事件名称 | 风险等级 | 发现时间 | 操作"},
+          {"id": "pagination", "templateRegion": "pagination", "position": "bottom", "required": true, "content": "分页区：上一页 1 2 3 下一页"}
+        ],
+        "variants": [],
+        "ascii": "┌──────────────────────────────────────────────┐\n│ 页面标题行：事件分析            [导出] [刷新] │\n├──────────────────────────────────────────────┤\n│ 概览统计区：事件总数 | 待处置 | 高风险       │\n├──────────────────────────────────────────────┤\n│ 筛选工具栏：风险等级 时间范围 关键字 [查询] │\n│ 表格区：事件名称 | 风险等级 | 发现时间 | 操作 │\n│ 分页区：上一页 1 2 3 下一页                 │\n└──────────────────────────────────────────────┘"
+      },
       "sections": [
         {"title": "概览统计区", "type": "指标区", "description": "页面顶部横向卡片展示事件总数、待处置事件数、高风险事件数。高风险事件数为可点击数字，点击后下方表格筛选风险等级为高，统计卡片保持高亮反馈。", "fields": ["事件总数：数字，0值正常展示", "待处置事件数：可点击数字，点击筛选处置状态为待处置", "高风险事件数：可点击数字，点击筛选风险等级为高"], "actions": ["点击高风险事件数后，列表筛选高风险事件"], "interactionNotes": ["点击统计数字后刷新表格数据并同步筛选条件", "查询中表格展示loading"], "validationRules": ["无数据时统计数字展示0，不隐藏卡片"]},
         {"title": "事件表格区", "type": "表格区", "description": "位于概览统计区下方，承载事件查询、导出和单条事件操作。", "toolbar": ["导出按钮", "风险等级下拉多选", "时间范围选择器", "事件名称输入框"], "filterComponent": "IxProSearch", "filterComponentDescription": "使用一个高级搜索组件承载风险等级、发现时间和事件名称筛选；若改为平铺筛选，则在filterComponent中统一列出各独立iDux组件名称。", "filterFields": [{"name": "风险等级", "component": "下拉多选", "mode": "多选", "options": "高/中/低", "default": "全部", "description": "按风险等级筛选"}, {"name": "发现时间", "component": "日期范围", "mode": "范围", "options": "最近7天/最近30天/自定义", "default": "最近7天", "description": "按发现时间筛选"}, {"name": "事件名称", "component": "输入框", "mode": "模糊搜索", "options": "-", "default": "空", "description": "按事件名称搜索"}], "tableFields": [{"name": "事件名称", "display": "可点击文本", "iduxComponent": "IxButton link", "description": "点击打开事件详情抽屉；长文本单行省略并悬浮展示完整内容"}, {"name": "风险等级", "display": "单标签", "iduxComponent": "IxTag", "description": "高/中/低，使用红/橙/蓝标签"}, {"name": "发现时间", "display": "时间", "iduxComponent": "", "description": "普通文本展示，支持排序"}], "actions": ["查询：按条件刷新表格", "重置：清空条件并恢复默认列表"], "interactionNotes": ["点击事件名称打开详情抽屉"], "validationRules": ["搜索无结果展示暂无符合条件的数据"]}

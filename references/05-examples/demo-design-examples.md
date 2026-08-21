@@ -94,6 +94,22 @@ HTML设计说明书已生成。请先查看HTML页面内容；如果HTML中有�
       "navigation": {"primary": "数据安全", "secondary": "数据防泄密", "tertiary": "事件分析", "tab": ""},
       "purpose": "帮助安全运维人员快速查看数据泄密事件整体情况，并通过筛选定位需要优先处理的高风险事件。",
       "layout": "页面采用上方概览统计区 + 下方筛选表格区的结构。",
+      "templateContract": {
+        "templateId": "page-table-overview",
+        "baseTemplateId": "",
+        "navigationType": "left-shaped",
+        "navigationTypeStatus": "assumed",
+        "navigationTypeSource": "AI补齐",
+        "navigationTypeNote": "概览表格页默认左侧菜单结构",
+        "templateSource": "common-design/references/03-design-template/01-page-types.md#page-table-overview",
+        "requiredRegions": ["global-navigation", "title-bar", "overview", "filter", "toolbar", "table", "pagination"],
+        "optionalRegions": [],
+        "regionOrder": ["global-navigation", "title-bar", "overview", "filter", "toolbar", "table", "pagination"],
+        "footerContract": {"required": false, "alignment": "", "buttonOrder": []},
+        "componentContract": {"overview": ["IxCard"], "table": ["IxTable"], "pagination": ["IxPagination"]},
+        "wireframeContract": {"variantsRequired": false},
+        "override": {"enabled": false, "source": "", "reason": "", "affectedRules": []}
+      },
       "restoreRequirement": {"description": "按Common Design概览表格页模板还原页面骨架，组件信息来自页面模板推荐组件。", "components": [{"area": "标题栏", "iduxComponent": "页面模板指定标题栏组件", "source": "Common Design页面模板", "usage": "承载页面标题和导出、刷新等页面级操作"}, {"area": "筛选区", "iduxComponent": "IxProSearch", "source": "Common Design页面模板", "usage": "承载事件查询条件"}, {"area": "表格", "iduxComponent": "IxTable", "source": "Common Design页面模板", "usage": "承载事件列表字段和行内操作"}, {"area": "分页", "iduxComponent": "IxPagination", "source": "Common Design页面模板", "usage": "承载列表分页"}]},
       "sections": [
         {
@@ -118,6 +134,22 @@ HTML设计说明书已生成。请先查看HTML页面内容；如果HTML中有�
           "validationRules": ["搜索无结果展示暂无符合条件的数据", "查询中表格展示loading", "长事件名称单行省略并悬浮展示完整内容", "字段为空展示-", "高风险事件默认排在前面"]
         }
       ],
+      "wireframe": {
+        "templateId": "page-table-overview",
+        "navigationType": "left-shaped",
+        "layoutSource": "Common Design page-table-overview",
+        "shell": {"globalNavigation": true, "titleBar": {"required": true, "type": "plain", "component": "页面模板指定标题栏组件"}, "contentContainer": {"required": true, "type": "page-content"}, "footer": {"required": false, "alignment": "", "height": "56px"}},
+        "regions": [
+          {"id": "global-nav", "templateRegion": "global-navigation", "position": "top", "required": true, "content": "全局导航"},
+          {"id": "title-bar", "templateRegion": "title-bar", "position": "top", "required": true, "content": "页面标题行：事件分析 [导出] [刷新]"},
+          {"id": "overview", "templateRegion": "overview", "position": "content-top", "required": true, "content": "概览统计区：今日新增 | 待处置 | 高风险 | 已处置"},
+          {"id": "filter", "templateRegion": "filter", "position": "content", "required": true, "content": "筛选工具栏：风险等级 处置状态 时间范围 事件名称 [查询]"},
+          {"id": "table", "templateRegion": "table", "position": "content", "required": true, "content": "表格区：事件名称 | 风险等级 | 处置状态 | 发现时间 | 操作"},
+          {"id": "pagination", "templateRegion": "pagination", "position": "bottom", "required": true, "content": "分页区"}
+        ],
+        "variants": [],
+        "ascii": "┌──────────────────────────────────────────────┐\n│ 页面标题行：事件分析            [导出] [刷新] │\n├──────────────────────────────────────────────┤\n│ 概览统计区：今日新增 | 待处置 | 高风险 | 已处置 │\n├──────────────────────────────────────────────┤\n│ 筛选工具栏：风险等级 处置状态 时间范围 关键字 │\n│ 表格区：事件名称 | 风险等级 | 处置状态 | 操作 │\n│ 分页区：上一页 1 2 3 下一页                 │\n└──────────────────────────────────────────────┘"
+      },
       "footerActions": ["无"],
       "codingGuide": {
         "pageContext": {
