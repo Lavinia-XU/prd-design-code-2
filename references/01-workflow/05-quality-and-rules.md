@@ -119,10 +119,13 @@
 
 ### 1.10 Implementation Mapping Gate 检查
 
+- Implementation Mapping Gate 是否由 AI 自动执行，未把代码核验职责推给产品经理或设计师。
 - 输出 Coding Plan 前是否已完成 Implementation Mapping Gate（无论设计阶段代码状态如何）。
-- 是否输出了统一映射表（设计对象、设计阶段表达、真实代码对象、实现方式、关键 API 或使用方式、与设计说明书的差异、处理结果）。
-- 实现方式是否只使用“直接引用 / 复用框架 / 组件复用 / 全新开发 / 待核验”五类。
-- 所有声明为复用的对象是否均已验证真实存在；语义级对象是否已映射到真实代码对象或明确标记“Coding 阶段待核验”。
+- 是否输出了统一映射表（设计对象、是否必需复用、设计阶段表达、真实代码对象、实现方式、AI核验依据、与设计说明书的差异、映射结果）。
+- 实现方式是否只使用“直接引用 / 复用框架 / 组件复用 / 全新开发”四类。
+- 映射结果是否只能是“已验证 / 全新开发 / 不适用 / 阻塞”四态。
+- 输出 Coding Plan 前，所有必需复用对象是否均为“已验证”；必需对象为“阻塞”时是否未继续输出 Coding Plan 或进入 Coding Execution。
+- “待核验”是否只存在于 Gate 执行前，是否未作为 Gate 完成后的结果。
 - 设计说明书与真实代码的差异是否已完成分级处理（实现层差异 / 设计层差异 / 业务事实缺失）。
 - 是否未在映射阶段未完成时输出 Coding Plan 或进入页面 Coding。
 
@@ -131,7 +134,17 @@
 - 当需求属于已有业务主题或已有页面体系时，是否把真实参考页面作为视觉和交互基线，而非只复用业务字段和数据模型。
 - 视觉基线映射是否覆盖：页面容器、页面标题层级、Tab 结构、筛选区、工具栏、表格容器、表格字段展示、状态组件、操作列、按钮位置和顺序、间距边界和空状态、高风险确认链路。
 - 视觉基线结果是否写入 Design Context 和页面总览，并在 Coding 阶段落实。
+- Implementation Mapping Gate 通过前，是否已完成视觉参考页面与视觉基线范围映射；属于已有页面体系但未完成时，是否未进入 Coding。
 - Verification 是否包含视觉基线回归；未完成视觉回归时是否未宣称 Demo 完整交付。
+
+### 1.12 开发项完整性检查
+
+- 页面级 Coding 指导是否使用“编号、开发对象、开发方式、复用与代码映射、实现要求、完成判定”六列表格，开发项 JSON 是否使用固定字段（id/scope/name/mode/mappingRef/mappingStatus/target/requirements/acceptanceCriteria 等）。
+- 页面 codingGuide 是否包含固定结构：pageContext、implementationRules、items、mockContract、stateContract、acceptanceCriteria、outOfScope。
+- 开发项是否具有稳定 ID，Coding Plan、Coding Execution 和 Verification 是否使用相同 ID 追踪，是否存在改名、合并或遗漏。
+- 每个开发项是否只对应一个可独立执行和验收的实现对象；是否明确了依赖顺序。
+- 未经过代码核验的开发项，target.path 是否留空并标记 pending 或 blocked，未编造路径。
+- 每个开发项是否包含完成判定（acceptanceCriteria）；缺少完成判定的开发项是否已补齐。
 
 ## 2. 禁止事项
 

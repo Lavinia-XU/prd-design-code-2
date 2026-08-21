@@ -63,26 +63,88 @@ def render_tree(nodes):
     return "".join(parts)
 
 
+MODE_LABELS = {
+    "reuse-framework": "复用框架",
+    "component-reuse": "组件复用",
+    "direct-reference": "直接引用",
+    "new-development": "全新开发",
+}
+STATUS_LABELS = {"verified": "已验证", "pending": "待核验", "blocked": "阻塞", "na": "不适用"}
+
+
+def _normalize_page_item(item):
+    """兼容新旧两种开发项结构，统一为六列行数据。"""
+    if not isinstance(item, dict):
+        return {"id": "", "name": str(item), "mode": "", "mapping": "", "requirements": "", "acceptance": ""}
+    if "developmentItem" in item or "developmentMode" in item or "developmentDescription" in item:
+        return {
+            "id": "",
+            "name": item.get("developmentItem") or item.get("item") or item.get("label") or "",
+            "mode": item.get("developmentMode") or item.get("mode") or item.get("way") or "",
+            "mapping": "",
+            "requirements": item.get("developmentDescription") or item.get("description") or item.get("detail") or "",
+            "acceptance": "",
+        }
+    mode = item.get("mode") or ""
+    status = item.get("mappingStatus") or ""
+    target = item.get("target") or {}
+    mapping_parts = []
+    if item.get("mappingRef"):
+        mapping_parts.append(item["mappingRef"])
+    if status:
+        mapping_parts.append(STATUS_LABELS.get(status, status))
+    if target.get("path"):
+        mapping_parts.append(target["path"])
+    if target.get("export"):
+        mapping_parts.append(target["export"])
+    reqs = item.get("requirements") or []
+    acc = item.get("acceptanceCriteria") or []
+    return {
+        "id": item.get("id") or "",
+        "name": item.get("name") or item.get("scope") or "",
+        "mode": MODE_LABELS.get(mode, mode),
+        "mapping": "；".join(mapping_parts),
+        "requirements": "；".join(reqs) if isinstance(reqs, list) else str(reqs or ""),
+        "acceptance": "；".join(acc) if isinstance(acc, list) else str(acc or ""),
+    }
+
+
 def render_coding_summary(guide, mode="overview"):
     if not guide:
         guide = {}
 
     if mode == "page":
-        items = guide.get("pageItems") or []
-        rows = []
-        for item in items:
-            if isinstance(item, dict):
-                rows.append({
-                    "developmentItem": item.get("developmentItem") or item.get("item") or item.get("label") or "",
-                    "developmentMode": item.get("developmentMode") or item.get("mode") or item.get("way") or "",
-                    "developmentDescription": item.get("developmentDescription") or item.get("description") or item.get("detail") or "",
-                })
-            else:
-                rows.append({"developmentItem": str(item), "developmentMode": "", "developmentDescription": ""})
-
+        rows = [_normalize_page_item(item) for item in (guide.get("pageItems") or [])]
         parts = []
+
+        ctx = guide.get("pageContext") or {}
+        if ctx:
+            ctx_lines = []
+            for key, label in (("pageId", "页面ID"), ("pageType", "页面类型"), ("route", "路由"), ("codeAvailability", "代码可用状态"), ("visualBaselineRef", "视觉基线参考")):
+                if ctx.get(key):
+                    ctx_lines.append(f"{label}：{ctx[key]}")
+            parts.append(f"<div><strong>页面实现前提</strong>{list_html(ctx_lines)}</div>")
+
+        rules = guide.get("implementationRules") or []
+        if rules:
+            parts.append(f"<div><strong>页面实现规则</strong>{list_html(rules)}</div>")
+
         if rows:
-            parts.append(f"<div><strong>开发项编码指导表</strong>{table_html(rows, [('developmentItem', '开发项'), ('developmentMode', '开发方式'), ('developmentDescription', '开发描述')])}</div>")
+            cols = [("id", "编号"), ("name", "开发对象"), ("mode", "开发方式"), ("mapping", "复用与代码映射"), ("requirements", "实现要求"), ("acceptance", "完成判定")]
+            parts.append(f"<div><strong>开发项编码指导表</strong>{table_html(rows, cols)}</div>")
+
+        mc = guide.get("mockContract") or {}
+        if mc:
+            parts.append(f"<div><strong>Mock数据契约</strong>{list_html([f'{k}：{v}' for k, v in mc.items()])}</div>")
+        sc = guide.get("stateContract") or {}
+        if sc:
+            parts.append(f"<div><strong>状态契约</strong>{list_html([f'{k}：{v}' for k, v in sc.items()])}</div>")
+        acc = guide.get("acceptanceCriteria") or []
+        if acc:
+            parts.append(f"<div><strong>页面验收标准</strong>{list_html(acc)}</div>")
+        oos = guide.get("outOfScope") or []
+        if oos:
+            parts.append(f"<div><strong>范围外事项</strong>{list_html(oos)}</div>")
 
         mock_data = guide.get("pageMockData") or []
         if mock_data:
@@ -154,13 +216,32 @@ def markdown_coding_guide(guide, mode="overview"):
         return "\n\n".join(parts)
 
     rows = guide.get("pageItems") or []
-    normalized = []
-    for item in rows:
-        if isinstance(item, dict):
-            normalized.append({"developmentItem": item.get("developmentItem") or item.get("item") or item.get("label") or "", "developmentMode": item.get("developmentMode") or item.get("mode") or item.get("way") or "", "developmentDescription": item.get("developmentDescription") or item.get("description") or item.get("detail") or ""})
-        else:
-            normalized.append({"developmentItem": str(item), "developmentMode": "", "developmentDescription": ""})
-    parts = ["### 页面级 AI Coding指导", markdown_table(normalized, [("developmentItem", "开发项"), ("developmentMode", "开发方式"), ("developmentDescription", "开发描述")])]
+    normalized = [_normalize_page_item(item) for item in rows]
+    parts = []
+    ctx = guide.get("pageContext") or {}
+    if ctx:
+        ctx_lines = []
+        for key, label in (("pageId", "页面ID"), ("pageType", "页面类型"), ("route", "路由"), ("codeAvailability", "代码可用状态"), ("visualBaselineRef", "视觉基线参考")):
+            if ctx.get(key):
+                ctx_lines.append(f"{label}：{ctx[key]}")
+        parts.extend(["#### 页面实现前提", markdown_list(ctx_lines)])
+    rules = guide.get("implementationRules") or []
+    if rules:
+        parts.extend(["#### 页面实现规则", markdown_list(rules)])
+    parts.append("### 页面级 AI Coding指导")
+    parts.append(markdown_table(normalized, [("id", "编号"), ("name", "开发对象"), ("mode", "开发方式"), ("mapping", "复用与代码映射"), ("requirements", "实现要求"), ("acceptance", "完成判定")]))
+    mc = guide.get("mockContract") or {}
+    if mc:
+        parts.extend(["#### Mock数据契约", markdown_list([f"{k}：{v}" for k, v in mc.items()])])
+    sc = guide.get("stateContract") or {}
+    if sc:
+        parts.extend(["#### 状态契约", markdown_list([f"{k}：{v}" for k, v in sc.items()])])
+    acc = guide.get("acceptanceCriteria") or []
+    if acc:
+        parts.extend(["#### 页面验收标准", markdown_list(acc)])
+    oos = guide.get("outOfScope") or []
+    if oos:
+        parts.extend(["#### 范围外事项", markdown_list(oos)])
     if guide.get("pageMockData"):
         parts.extend(["#### 页面级Mock数据要求", markdown_list(guide.get("pageMockData"))])
     if guide.get("pageNotes"):

@@ -120,13 +120,23 @@ HTML设计说明书已生成。请先查看HTML页面内容；如果HTML中有�
       ],
       "footerActions": ["无"],
       "codingGuide": {
+        "pageContext": {
+          "pageId": "P001",
+          "pageType": "概览表格页",
+          "route": "/data-security/event-analysis",
+          "codeAvailability": "verified",
+          "visualBaselineRef": "src/pages/event-analysis/index.vue"
+        },
+        "implementationRules": ["优先复用已验证页面和业务组件", "严格使用页面字段表中指定的组件"],
         "pageItems": [
-          {"developmentItem": "页面框架", "developmentMode": "复用框架", "developmentDescription": "复用XX页面整体布局和固定字段，新增列表区和详情抽屉区。"},
-          {"developmentItem": "处置弹窗", "developmentMode": "组件复用", "developmentDescription": "复用XX页面已存在的弹窗结构和校验逻辑，补充本页面的处置字段。"},
-          {"developmentItem": "筛选搜索组件", "developmentMode": "组件复用", "developmentDescription": "使用XX筛选组件，补充风险等级、处置状态和时间范围筛选配置。"}
+          {"id": "P001-C01", "scope": "page-shell", "name": "页面框架", "mode": "reuse-framework", "mappingRef": "M01", "mappingStatus": "verified", "target": {"path": "src/pages/event-analysis/index.vue", "export": "EventAnalysisPage"}, "dependencies": [], "requirements": ["复用XX页面整体布局和固定字段", "新增列表区和详情抽屉区"], "states": ["loading", "empty", "search-no-result"], "mockContract": {"requiredFields": ["事件名称", "风险等级", "处置状态", "发现时间"]}, "acceptanceCriteria": ["页面结构与视觉参考页面一致", "筛选、分页和行内操作可用"], "prohibitedChanges": ["不得替换已验证的表格容器"]},
+          {"id": "P001-C02", "scope": "modal", "name": "处置弹窗", "mode": "component-reuse", "mappingRef": "M02", "mappingStatus": "verified", "target": {"path": "src/components/dispose-modal/index.vue", "export": "DisposeModal"}, "dependencies": ["P001-C01"], "requirements": ["复用XX页面已存在的弹窗结构和校验逻辑", "补充本页面的处置字段"], "states": ["submitting", "submit-success", "submit-failed"], "mockContract": {"updateAfterActions": ["提交处置后关闭弹窗并更新列表状态"]}, "acceptanceCriteria": ["弹窗校验规则生效", "提交后列表和统计同步更新"], "prohibitedChanges": ["不得新增真实提交接口"]},
+          {"id": "P001-C03", "scope": "filter", "name": "筛选搜索组件", "mode": "component-reuse", "mappingRef": "M03", "mappingStatus": "verified", "target": {"path": "src/components/pro-search/index.vue", "export": "ProSearch"}, "dependencies": ["P001-C01"], "requirements": ["使用XX筛选组件", "补充风险等级、处置状态和时间范围筛选配置"], "states": ["expanded", "collapsed"], "mockContract": {"filterFields": ["风险等级", "处置状态", "时间范围", "事件名称"]}, "acceptanceCriteria": ["筛选条件组合生效"], "prohibitedChanges": []}
         ],
-        "pageMockData": ["至少12条事件数据", "覆盖高/中/低风险和待处置/处理中/已处置状态"],
-        "pageNotes": ["筛选基于Mock数据组合生效", "提交处置后关闭弹窗并更新列表状态"]
+        "mockContract": {"requiredFields": ["事件名称", "风险等级", "处置状态", "发现时间"], "updateAfterActions": ["处置成功后列表、统计卡片和详情状态同步更新"]},
+        "stateContract": {"loading": "查询中表格展示loading", "empty": "字段为空展示-", "search-no-result": "搜索无结果展示暂无符合条件的数据"},
+        "acceptanceCriteria": ["页面入口可访问", "筛选、分页和行内操作可用", "视觉回归通过"],
+        "outOfScope": ["不实现真实后端接口"]
       },
       "children": []
     }

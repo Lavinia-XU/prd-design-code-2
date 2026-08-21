@@ -171,13 +171,27 @@ python scripts/generate_demo_spec_html.py --input ./demo-spec.json --output ./de
       ],
       "footerActions": {"visible": false, "containerType": "page", "alignment": "none", "actions": [], "source": "无底部操作"},
       "codingGuide": {
-        "pageItems": [
-          {"developmentItem": "页面框架", "developmentMode": "复用框架", "developmentDescription": "复用XX页面整体布局和固定字段，新增概览统计区和事件表格区。"},
-          {"developmentItem": "导出功能", "developmentMode": "直接引用", "developmentDescription": "复用XX页面已开发好的导出实现，仅替换导出字段和文案。"},
-          {"developmentItem": "筛选搜索组件", "developmentMode": "组件复用", "developmentDescription": "使用XX筛选组件，补充风险等级、时间范围和事件名称筛选配置。"}
+        "pageContext": {
+          "pageId": "P01",
+          "pageType": "标准列表页",
+          "route": "/data-security/event-analysis",
+          "codeAvailability": "verified",
+          "visualBaselineRef": "src/pages/event-analysis/index.vue"
+        },
+        "implementationRules": [
+          "优先复用已验证页面和业务组件",
+          "严格使用页面字段表中指定的组件",
+          "不得用原生 HTML 替代业务组件"
         ],
-        "pageMockData": ["至少12条事件数据，覆盖高/中/低风险和待处置/处理中/已处置状态"],
-        "pageNotes": ["筛选基于Mock数据实时生效", "提交处置后更新当前行状态"]
+        "pageItems": [
+          {"id": "P01-C01", "scope": "page-shell", "name": "页面框架", "mode": "reuse-framework", "mappingRef": "M01", "mappingStatus": "verified", "target": {"path": "src/pages/event-analysis/index.vue", "export": "EventAnalysisPage"}, "sourceRefs": ["page:P01", "mapping:M01"], "dependencies": [], "requirements": ["复用事件分析页整体布局和固定字段", "新增概览统计区和事件表格区", "保留标题栏、筛选区、表格、分页结构"], "states": ["loading", "empty", "search-no-result", "error"], "mockContract": {"requiredFields": ["事件名称", "风险等级", "发现时间"], "updateAfterActions": ["查询后刷新列表"]}, "acceptanceCriteria": ["页面入口可访问", "页面结构与视觉参考页面一致", "筛选、分页和行内操作可用"], "prohibitedChanges": ["不得替换已验证的业务表格容器", "不得引入真实后端接口"]},
+          {"id": "P01-C02", "scope": "toolbar", "name": "导出功能", "mode": "direct-reference", "mappingRef": "M02", "mappingStatus": "verified", "target": {"path": "src/components/export-btn/index.vue", "export": "ExportButton"}, "sourceRefs": ["page:P01", "section:toolbar"], "dependencies": ["P01-C01"], "requirements": ["复用已开发好的导出实现", "仅替换导出字段和文案"], "states": ["exporting", "export-success", "export-failed"], "mockContract": {"exportFields": ["事件名称", "风险等级", "发现时间"]}, "acceptanceCriteria": ["导出文件字段与列表一致", "导出中按钮展示loading"], "prohibitedChanges": ["不得新增真实导出接口"]},
+          {"id": "P01-C03", "scope": "filter", "name": "筛选搜索组件", "mode": "component-reuse", "mappingRef": "M03", "mappingStatus": "verified", "target": {"path": "src/components/pro-search/index.vue", "export": "ProSearch"}, "sourceRefs": ["page:P01", "section:filter"], "dependencies": ["P01-C01"], "requirements": ["使用IxProSearch承载筛选", "补充风险等级、时间范围和事件名称筛选配置"], "states": ["expanded", "collapsed"], "mockContract": {"filterFields": ["风险等级", "发现时间", "事件名称"]}, "acceptanceCriteria": ["筛选条件可配置", "重置恢复默认列表"], "prohibitedChanges": ["不得替换为平铺筛选"]}
+        ],
+        "mockContract": {"requiredFields": ["事件名称", "风险等级", "发现时间"], "updateAfterActions": ["查询后刷新列表"]},
+        "stateContract": {"loading": "查询中展示loading", "empty": "无数据显示空状态", "search-no-result": "搜索无结果展示暂无符合条件的数据"},
+        "acceptanceCriteria": ["页面入口可访问", "视觉回归通过", "筛选、分页和行内操作可用"],
+        "outOfScope": ["不实现真实后端接口", "不实现真实鉴权"]
       },
       "children": []
     }
@@ -209,7 +223,7 @@ HTML设计说明书已生成。请先查看HTML页面内容；如果HTML中有�
 
 ```text
 - 总览AI Coding指导：<写全局复用策略、全局Mock数据要求、全局编码边界、全局一致性要求和页面开发顺序>。
-- 页面级AI Coding指导：<按每个页面列出开发项、开发方式、开发描述；例如页面框架、导入/导出、资产选择器、筛选组件、表单、弹窗、抽屉等>。
+- 页面级AI Coding指导：<按每个页面列出编号、开发对象、开发方式、复用与代码映射、实现要求、完成判定；例如页面框架、导入/导出、资产选择器、筛选组件、表单、弹窗、抽屉等>。
 - 参考已有页面开发：<列出会参考的已开发页面、代码模块或目录；无则写“暂无”>。
 - 开发顺序：<按页面层级列出先后顺序，先父级主页面，再新增、编辑、详情、弹窗或抽屉等子页面>。
 
