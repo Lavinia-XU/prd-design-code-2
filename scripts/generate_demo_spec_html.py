@@ -216,7 +216,7 @@ def markdown_page(page, inherited_nav=None):
         if block.get("filterComponent") or block.get("filterComponentDescription"):
             lines.extend(["**筛选区组件说明**", markdown_list([item for item in [block.get("filterComponent"), block.get("filterComponentDescription")] if item])])
         if block.get("filterFields"):
-            lines.extend(["**筛选字段**", markdown_table(normalize_component_rows(block.get("filterFields")), [("name", "字段名称"), ("component", "组件/筛选方式"), ("iduxComponent", "iDux组件名称"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])])
+            lines.extend(["**筛选字段**", markdown_table(block.get("filterFields"), [("name", "字段名称"), ("component", "组件/筛选方式"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])])
         if block.get("tableFields") or block.get("columns"):
             lines.extend(["**表格字段**", markdown_table(normalize_component_rows(block.get("tableFields") or block.get("columns")), [("name", "字段名称"), ("display", "展示形式"), ("iduxComponent", "组件名称"), ("description", "说明")])])
         if block.get("formFields"):
@@ -325,7 +325,7 @@ def render_block_detail(block):
         if filter_component_description:
             filter_intro.append(f"组件使用说明：{esc(filter_component_description)}")
         filter_html = optional_list_block("筛选区组件说明", filter_intro)
-        filter_table = optional_table_block("筛选字段", filter_fields, [("name", "字段名称"), ("component", "组件/筛选方式"), ("iduxComponent", "iDux组件名称"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])
+        filter_table = optional_table_block("筛选字段", filter_fields, [("name", "字段名称"), ("component", "组件/筛选方式"), ("mode", "匹配方式"), ("options", "选项范围"), ("default", "默认值"), ("description", "说明")])
         details.append(filter_html + filter_table)
 
     table_fields = block.get("tableFields") or block.get("columns") or []

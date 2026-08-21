@@ -15,10 +15,11 @@ metadata:
 
 # 角色与职责
 
-- A 是 Workflow Orchestrator：负责组织需求输入、Design Skill Resolver、页面拆解、待确认问题、HTML说明书、Coding Plan、Coding Execution和Verification。
+- A 是 Workflow Orchestrator：负责组织需求输入、Design Skill Resolver、页面拆解、待确认问题、HTML说明书、Implementation Mapping Gate、Coding Plan、Coding Execution和Verification。
 - A 不维护具体设计规范：具体页面类型、业务主题、组件、导航、表格、表单、状态、术语等设计知识应来自 Common Design、Product Design、已有代码或用户输入。
 - A 负责把设计知识装配成当前任务可执行的 Design Context，并确保后续页面设计、HTML说明书和Coding执行均基于该上下文。
 - A 负责控制输出边界：对话框只展开到页面总览和待确认问题；逐页设计、交互细节、Mock数据和AI Coding详细指导写入HTML说明书。
+- 职责边界：本 Skill 只负责发现、调用、装配和核验设计知识，不维护任何具体产线的业务模型、业务组件规范或仓库页面路径；产品身份必须通过 Product Design 的 metadata、product_id 或 Resolver 结果确定，禁止在本 Skill 内容中硬编码具体产线或产品名称，禁止用产品名称或缩写猜测 Product Design。
 
 # 设计知识调用与优先级
 
@@ -26,7 +27,10 @@ metadata:
 - Design Skill必须通过当前环境的Skill查询能力实际发现并读取；未实际查询和读取的Skill一律视为不存在，禁止假设或虚构。
 - 只有完成“查询 → 读取SKILL.md → metadata校验”的Design Skill，才允许进入当前任务的Design Context并作为设计依据。
 - Common Design：优先识别声明`skill_type: common-design`的Skill，作为通用设计规则来源；若只有一个Common Design，直接使用。Common Design是进入正式页面设计阶段的必需依赖：未查询到Common Design，或查询到但无法成功读取其SKILL.md时，不得使用AI自身通用设计知识模拟Common Design；应停止进入正式页面设计，并提示缺少Common Design。读取Common Design时必须明确读取组件映射表和页面模板里的推荐组件，用于页面骨架、筛选区、表格字段、表单字段和反馈类组件映射。
-- Product Design：作为可选增强依赖。先识别当前需求所属产品或当前可确认的产品范围，再寻找`skill_type: product-design`且`product_id`与其一致的Skill；禁止仅通过Skill名称中是否出现XDR、SASE、DSP等缩写判断。未找到匹配Product Design属于正常执行状态，不阻断流程、不作为待确认问题，进入Common Design模式继续执行，并结合当前代码环境和AI补齐。只有产品身份会影响导航、业务规则或Product Design选择，且无法根据现有输入确定时，才进入待确认问题；发现多个可能匹配的Product Design且无法判断选择对象时，也进入待确认问题。
+- Product Design：作为可选增强依赖。先识别当前需求所属产品或当前可确认的产品范围，再寻找`skill_type: product-design`且`product_id`与其一致的Skill；产品身份必须通过 Product Design 的 metadata、product_id 或 Resolver 结果确定，禁止仅通过Skill名称中是否出现XDR、SASE、DSP等缩写判断，也禁止在本 Skill 内容中硬编码具体产线或产品名称。未找到匹配Product Design属于正常执行状态，不阻断流程、不作为待确认问题，进入Common Design模式继续执行，并结合当前代码环境和AI补齐。只有产品身份会影响导航、业务规则或Product Design选择，且无法根据现有输入确定时，才进入待确认问题；发现多个可能匹配的Product Design且无法判断选择对象时，也进入待确认问题。
+- Product Design 组件映射处理：
+  - 若 Product Design 已提供业务组件映射，prd-design-code-2 应读取并纳入 Design Context。
+  - 若 Product Design 未提供某组件映射，设计阶段使用语义级描述；Coding 阶段通过 Implementation Mapping Gate 核验真实组件，将真实路径、Props、Events 和调用方式记录到当前任务的映射结果中；不把这些仓库级实现细节永久写入本 Skill。
 - Resolver只决定设计知识来源，不负责具体页面设计；读取采用“索引优先、Reference按需”的方式：
   - Common Design：先读取SKILL.md及Design Capability Index / Reference Index；
   - Product Design：若存在匹配项，先读取SKILL.md、Coverage及Reference Index；
@@ -43,7 +47,7 @@ metadata:
   - 本需求命中的Design Capability；
   - 每项能力的实际知识来源；
   - 若存在Product Design，其Coverage及`inherit / extend / override`关系；
-  - 当前代码中已验证的可复用对象；
+  - 当前任务代码可用状态（verified / partial / unavailable）及当前代码中已验证的可复用对象；
   - AI合理补齐项；
   - 仍无明确规则的内容；
   - 关键冲突和待确认业务事实。
@@ -85,6 +89,21 @@ metadata:
 
 已有标准组件或已有业务组件能够满足需求时，禁止重新实现同类基础能力。
 
+# 代码可用状态
+
+设计阶段读取业务代码后，必须为当前任务的代码可用性标记唯一状态，并写入 Design Context：
+
+- `verified`：设计阶段已实际读取并验证相关业务代码，可明确真实页面、组件、路由、交互和数据结构。
+- `partial`：只读取了部分代码，仍有页面、组件或交互未验证。
+- `unavailable`：设计阶段没有可用业务代码，或没有找到相关参考页面。
+
+约束：
+
+- 项目目录存在不代表代码已经读取；只有实际读取并验证过的页面、组件、路由、交互和数据结构，才能标记为 `verified`。
+- `partial` 和 `unavailable` 状态下，禁止凭空生成真实文件路径、组件路径、Props、Events 或调用方式。
+- 设计阶段没有代码时，不阻断需求设计，但必须明确区分：哪些内容是语义级描述、哪些内容需要 Coding 阶段核验。
+- 产品身份不通过代码推断，也不得通过硬编码产品名称或缩写确定；必须依据 Product Design 的 metadata、product_id 或 Resolver 结果。
+
 # 核心工作流程
 
 ## Step 1 输入与 Demo 范围
@@ -93,6 +112,7 @@ metadata:
 - 若没有任何需求资料，先要求补充需求内容、Demo范围、代码范围或相关文档，禁止自行生成Demo方案。
 - 过滤Demo范围：仅将平台内展示、平台内操作、可演示前端流程进入Demo设计；线下流程、外部系统、技术实现、商业背景仅作为背景或待确认信息。
 - 若存在Demo代码环境、用户指定代码范围、Design Skill提到参考模块，或用户提到已有模块，读取相关代码作为输入，关注路由、菜单、相似页面、组件组织、Mock数据和已有交互习惯。
+- 读取代码后，必须按“代码可用状态”标记当前任务的代码可用性（verified / partial / unavailable）并写入 Design Context；项目目录存在但未实际读取验证的代码一律视为 `unavailable`。
 
 ## Step 2 产品识别 + Design Context
 
@@ -101,7 +121,7 @@ metadata:
 - 先读取Common Design的SKILL.md和Reference Index；若存在匹配Product Design，再读取其SKILL.md、Coverage和Reference Index；按需求命中的能力选择Reference，不递归读取所有Reference。
 - Common Design解析成功后即可进入设计知识装配；必须读取组件映射表和页面模板里的推荐组件，形成当前任务的组件映射基线；若存在匹配Product Design，解析其Coverage中的`inherit / extend / override`关系，并读取产品设计里的特殊组件，明确每项设计能力和组件能力的最终知识来源。
 - 未找到匹配Product Design时，使用Common Design、PRD、用户输入和当前代码环境继续设计；对于页面组织、通用交互、展示字段等可合理推导的设计细节允许AI补齐，但真实业务事实、权限、状态流转、数量限制、业务规则等不可从现有输入确认的信息不得自行编造，必要时进入待确认问题。
-- 形成Design Context并在内部用于后续设计；仅当产品无法确定、已发现的Product Design存在选择歧义、关键Reference缺失或规则冲突未明确时，进入待确认问题或停止页面拆解。
+- 形成Design Context并在内部用于后续设计；Design Context 必须包含代码可用状态（verified / partial / unavailable）；仅当产品无法确定、已发现的Product Design存在选择歧义、关键Reference缺失或规则冲突未明确时，进入待确认问题或停止页面拆解。
 
 ## Step 3 核心用户、场景、目标
 
@@ -136,6 +156,9 @@ metadata:
 - HTML中的每项页面结构、内容区块、交互规则、状态规则、术语、组件选择和底部操作区布局，都必须可追溯到已读取的Common Design / Product Design Reference、PRD、用户确认、已验证代码或明确标记的AI补齐；不得仅因已识别Common Design就默认其所有规则已被使用。
 - 绘制HTML线框图前，必须先选择已读取的页面类型模板，再填入业务内容；不得根据页面名称或业务内容自由拼装结构。线框图必须继承当前页面类型或容器形态对应的Common Design页面模板结构，并继承其中的底部操作区位置、按钮顺序和布局规则。底部操作区属于页面模板结构硬约束；除非PRD、用户确认或匹配Product Design明确覆盖，不得将同一操作区按钮拆分为左右两侧，也不得自行混用页面、抽屉、弹窗等不同容器的按钮位置规则。
 - 生成HTML前，对每页执行“页面类型 → 模板结构 → layout → 页面骨架组件映射 → 内容区块 → 筛选/表格/表单字段组件映射 → wireframe → 组件与交互 → 页面级AI Coding指导”一致性校验；任一环节与已选模板不一致时，先修正页面设计或明确覆盖依据，不得直接生成HTML。
+- 设计说明书中的复用对象表达必须与代码可用状态一致：
+  - `verified`：复用对象尽可能精确到真实页面文件、组件名称、文件路径、关键 Props / Events / Slots 或使用方式、复用类型（直接引用 / 复用框架 / 组件复用）、相对已有实现的新增字段与交互视觉差异、必须保留的页面结构和业务组件。
+  - `partial` 或 `unavailable`：只描述设计语义和组件能力（如标准列表容器、业务策略列表框架、业务对象展示组件、标准状态切换组件、标准高风险确认链路），禁止虚构具体文件路径、组件路径、Props、Events 或调用方式；真实代码对象统一标记为“Coding 阶段待核验”。
 - 生成页面级AI Coding指导前，读取 [Coding指导与执行规范](references/01-workflow/04-interaction-coding-guidelines.md) 中的Coding输出规则，并基于Design Context确定具体组件、复用对象和开发方式。
 - 页面级AI Coding指导必须明确“开发项、开发方式、开发描述”；不重复罗列字段级组件明细，但必须写明组件使用规则：严格按照页面区块、表格字段、表单字段中标注的组件名称开发，不得用原生HTML或其他组件替代；页面模板中已指定的标题栏、筛选区、表格、分页、弹窗、抽屉等组件，应按模板组件骨架实现；字段表中标注为标签、链接按钮、状态徽标、下拉选择、日期范围、开关等组件的内容，必须使用对应iDux或公司封装组件实现；未标注组件名称的普通文本/数字字段，可按常规文本渲染，如实现时发现交互含义，应回查Common Design组件映射表补齐。涉及已有页面、模块或业务组件时明确复用对象。
 - 将逐页设计说明、页面内容区块、交互逻辑、状态规则、Mock数据和AI Coding指导整理为结构化JSON。
@@ -143,12 +166,26 @@ metadata:
 - HTML默认直接输出到项目根目录，禁止写入已有文件夹；仅当用户明确指定其他位置时才使用指定路径。
 - HTML标题使用“XX需求设计说明书”；左侧目录只包含总览和按页面层级组织的页面目录，不包含待确认问题。
 
+## Step 6.5 Implementation Mapping Gate（代码实现映射阶段）
+
+- 位置：用户确认 HTML 说明书后、输出 Coding Plan 前；无论设计阶段代码状态如何，本阶段都必须执行，不得跳过直接开始 Coding。
+- 情况 A（设计阶段代码状态为 `verified`）：重新验证 HTML 中写明的页面、组件、路径、参数和复用方式；确认设计说明书与当前代码实现是否一致；补充实际复用范围和新增差异。
+- 情况 B（设计阶段为 `unavailable`，Coding 阶段发现代码）：读取当前代码环境；找到真实页面、组件、路由和交互；将设计说明书中的语义级组件映射到真实代码对象；必要时修正 HTML 中的 Coding 指导；不得绕过映射阶段直接开始 Coding。
+- 情况 C（设计阶段为 `partial`）：保留已验证的映射；对未验证对象补充代码核验；明确哪些对象仍处于“Coding 阶段待核验”状态。
+- 本阶段必须输出统一映射表：
+
+| 设计对象 | 设计阶段表达 | 真实代码对象 | 实现方式 | 关键 API 或使用方式 | 与设计说明书的差异 | 处理结果 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+- “实现方式”只能使用：直接引用 / 复用框架 / 组件复用 / 全新开发 / 待核验。
+- 映射表输出后，将结果纳入 Coding Plan；未完成映射前不得输出 Coding Plan。
+
 ## Step 7 Coding Plan
 
-- HTML生成后，提醒用户查看HTML页面内容；若用户反馈HTML需调整，先更新JSON并重新生成HTML，再输出Coding Plan。
+- HTML生成后，提醒用户查看HTML页面内容；若用户反馈HTML需调整，先更新JSON并重新生成HTML，再执行 Implementation Mapping Gate，最后输出Coding Plan。
 - Coding Plan以最新HTML中的页面级AI Coding指导作为直接实现基线，不在本阶段重新设计页面结构、重新选择组件或重新改变开发方式。
-- 开始Coding Plan前，结合当前代码环境核对HTML中指定的已有页面、模块、业务组件和复用对象是否真实存在，以及实际路径、接口和使用方式是否一致。对“复用已有页面”或“参考已有框架”，必须核对对应页面的容器结构、步骤条、工具栏、底部按钮位置、关键交互和组件组织，并在Coding Plan中写明实际复用范围与新增差异。
-- 若HTML指定的复用对象无法找到、实际实现与HTML描述不一致或无法满足需求，先报告差异并获得确认，不得自行改为全新开发。
+- Coding Plan 以 Implementation Mapping Gate 输出的统一映射表为复用与差异基线，不再重复核验映射表中已确认的对象。
+- 若映射阶段发现设计层差异，必须先修正结构化设计说明和 HTML 并重新获得用户确认，确认前不得输出 Coding Plan。
 - Coding Plan必须覆盖：输入来源、导航路径、全新开发页面、参考已有页面、复用对象、新增实现功能点、Mock策略、页面开发顺序和风险点。
 - Coding Plan必须逐项映射HTML页面级AI Coding指导，不得遗漏、合并或自行改写开发项。
 - 只有用户明确同意后，才进入Coding Execution。
@@ -159,6 +196,10 @@ metadata:
 - 先开发父级主页面，再开发新增、编辑、详情、弹窗、抽屉或下钻页面，确保入口和跳转链路可运行。
 - 每页开发前核对Design Context、HTML页面说明、页面级Coding指导、复用对象和Mock数据要求。
 - 每页完成后告知用户已完成哪个页面、接下来开发哪个页面。
+- 并发开发限制：
+  - 允许并发：只读代码调研、Mock 数据整理、类型定义整理、不涉及共享页面骨架的准备工作。
+  - 禁止并发：共享页面外壳尚未冻结时并行开发多个页面；父页面和子页面同时 Coding；共享工具栏、表格容器、表单容器或业务组件尚未确认时并行实现；多个 Agent 分别决定同一业务组件的替代实现；Implementation Mapping Gate 尚未完成时进入页面 Coding。
+  - 仅当页面骨架、视觉基线、公共组件和实现映射已经冻结后，才允许并发开发完全独立的页面。
 - 所有页面完成后，告知用户“Demo已开发完毕，请告知有哪些需要调整的”。
 
 ## Step 9 Verification
@@ -166,13 +207,43 @@ metadata:
 - 读取 [质量自检机制与规则](references/01-workflow/05-quality-and-rules.md)，执行输出边界、Design Context、页面总览、HTML说明书、Coding Plan和Coding结果检查。
 - 验证HTML说明书是否生成在项目根目录、页面总览与HTML逐页说明是否一致、页面结构与Design Context是否一致。
 - 验证Coding实现是否落实HTML页面级开发项、复用策略、页面结构、关键字段、操作、状态、边界和Mock数据。
+- 验证视觉基线：属于已有业务主题或已有页面体系的需求，必须对照真实参考页面做视觉回归，覆盖页面容器、页面标题层级、Tab 结构、筛选区、工具栏、表格容器、表格字段展示、状态组件、操作列、按钮位置和顺序、间距边界和空状态、高风险确认链路；功能行为、组件复用、页面结构和视觉基线回归均通过后，才可宣称 Demo 完整交付。
 - 若用户反馈Coding效果不好，先判断问题来源是需求理解、Design Context、HTML说明书、代码实现、业务规范还是组件复用策略，再决定回到对应步骤修正。
+
+# 差异分级与处理规则
+
+发现设计说明书与真实代码不一致时，不得静默修改，也不得把复用实现直接替换为全新开发。按以下分级处理：
+
+- 实现层差异：仅影响具体组件名称、文件路径或调用方式，不影响页面结构、视觉基线、交互流程和业务规则。处理：记录到映射表和 Coding Plan，更新 Coding Plan 后继续开发。
+- 设计层差异：影响页面容器、布局、表格结构、视觉层级、交互流程、状态规则或业务规则。处理：先修正结构化设计说明和 HTML，重新获得用户确认；确认前不得进入 Coding Execution。
+- 业务事实缺失：权限、状态流转、数量限制、接口约束等无法从 PRD、用户确认、Product Design 或代码中确定。处理：进入待确认问题，不得用虚构业务逻辑替代。
+
+# 视觉基线约束
+
+当需求属于已有业务主题或已有页面体系时，必须把真实参考页面作为视觉和交互基线，不能只复用业务字段和数据模型而忽略已有页面的视觉结构。
+
+视觉基线映射至少包括：
+
+- 页面容器；
+- 页面标题层级；
+- Tab 结构；
+- 筛选区；
+- 工具栏；
+- 表格容器；
+- 表格字段展示；
+- 状态组件；
+- 操作列；
+- 按钮位置和顺序；
+- 间距、边界和空状态；
+- 高风险确认链路。
+
+视觉基线结果写入 Design Context 和页面总览；Coding 阶段必须对照该基线实现，Verification 必须包含视觉基线回归。
 
 # 输出 Contract
 
 - 对话框输出：需求与Demo范围、核心用户与场景、Design Context摘要、导航结构、页面总览表、待确认问题、HTML文件路径、Coding Plan和Coding执行进度。
 - HTML输出：总览页、导航结构、页面总览表、逐页页面目标、页面基础信息、页面内容区块、Wireframe / ASCII线框图、底部操作、页面级AI Coding指导、Mock数据要求。
-- Coding Plan输出：输入来源、Design Context使用方式、页面开发顺序、复用对象、新增开发项、风险与确认点。
+- Coding Plan输出：输入来源、Design Context使用方式、Implementation Mapping Gate映射结果、页面开发顺序、复用对象、新增开发项、风险与确认点。
 - Coding Execution输出：按页开发进度、页面级验证结论、下一页计划、最终完成说明。
 - 禁止在对话框展开HTML逐页详情、完整交互规则、完整Mock数据和完整AI Coding提示词。
 
@@ -181,6 +252,7 @@ metadata:
 - Design Skill Resolver已执行，Common Design已识别；若存在匹配Product Design，其Coverage关系已识别。
 - Common Design已完成“查询 → SKILL.md读取 → metadata校验”；不存在Common Design时未进入正式页面设计。
 - Design Context已形成，且每项命中设计能力的知识来源明确。
+- Design Context 包含代码可用状态（verified / partial / unavailable）；`partial` / `unavailable` 状态下未虚构真实文件路径、组件路径、Props 或 Events。
 - HTML中的页面级AI Coding指导已在生成HTML前完成组件映射和复用对象判断；Coding Plan未重新改变已确认HTML中的组件、复用对象和开发方式。
 - HTML线框图已校验页面模板结构一致性；页面类型、模板结构、layout、内容区块、wireframe、组件与交互、页面级AI Coding指导均一致；含底部操作区的页面、抽屉、弹窗等容器均继承已读取Common Design中的按钮位置与顺序规则，不存在无依据的左右分置或跨容器规则混用。
 - 每页均已形成页面类型决策记录；页面类型来自已读取的标准类型或已验证代码，自定义页面类型已说明继承模板与差异；声明复用已有页面或参考已有框架的页面已完成容器结构、步骤条、工具栏、底部按钮位置和关键交互的代码参考验收。
@@ -189,8 +261,11 @@ metadata:
 - 待确认问题已在HTML前输出并等待用户确认；未把待确认问题写入HTML。
 - HTML文件默认生成在项目根目录，未写入已有文件夹。
 - HTML说明书覆盖逐页设计、交互逻辑、边界状态、Mock数据和AI Coding指导。
+- 输出 Coding Plan 前已完成 Implementation Mapping Gate 并输出统一映射表；所有声明为复用的对象均已验证真实存在；语义级对象已映射或明确标记“Coding 阶段待核验”。
+- 设计说明书与真实代码的差异已完成分级处理：实现层差异已记录并更新 Coding Plan，设计层差异已修正 HTML 并重新获得用户确认，业务事实缺失已进入待确认问题；未将实现层差异静默改为全新开发。
+- 视觉基线已完成核对：属于已有业务主题或页面体系的需求已对照真实参考页面做视觉回归；功能、交互、组件复用和视觉回归均通过后，才宣称任务完成。
 - Coding Plan逐项映射HTML页面级AI Coding指导，并获得用户确认后才执行。
-- Coding Execution按页面顺序推进，每页完成后做页面级核对。
+- Coding Execution按页面顺序推进，每页完成后做页面级核对；未在共享页面骨架冻结前并发 Coding。
 
 # 本 Skill 自有资源
 
@@ -201,6 +276,6 @@ metadata:
   - [references/01-workflow/01-output-templates.md](references/01-workflow/01-output-templates.md)：对话框输出、HTML JSON和Coding计划模板。
   - [references/01-workflow/02-experience-goal-writing.md](references/01-workflow/02-experience-goal-writing.md)：已保留为历史参考，不再用于HTML输出生成。
   - [references/01-workflow/03-demo-design-spec.md](references/01-workflow/03-demo-design-spec.md)：页面拆解、页面总览和HTML逐页设计规格。
-  - [references/01-workflow/04-interaction-coding-guidelines.md](references/01-workflow/04-interaction-coding-guidelines.md)：代码环境核验、Mock数据、Coding指导和逐页执行规则。
+  - [references/01-workflow/04-interaction-coding-guidelines.md](references/01-workflow/04-interaction-coding-guidelines.md)：代码环境核验、Implementation Mapping Gate、Mock数据、Coding指导和逐页执行规则。
   - [references/01-workflow/05-quality-and-rules.md](references/01-workflow/05-quality-and-rules.md)：质量自检、禁止事项和Coding执行检查。
   - [references/05-examples/demo-design-examples.md](references/05-examples/demo-design-examples.md)：HTML说明书输入JSON与页面说明示例。

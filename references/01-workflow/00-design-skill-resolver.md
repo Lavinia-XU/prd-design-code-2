@@ -35,6 +35,8 @@ Resolver 只决定设计知识来源，不负责具体页面设计。
 
 没有匹配 Product Design 时，不得使用其他产品的 Product Design 作为参考；这不阻止页面拆解，也不作为待确认问题。此时继续使用 Common Design、当前代码环境和明确标记的AI补齐。仅当发现多个可能匹配的 Product Design 且无法判断选择对象时，才进入待确认问题。
 
+产品身份必须通过 Product Design 的 metadata、product_id 或 Resolver 结果确定，不得在通用 Skill 内容中硬编码具体产线或产品名称，也不得通过产品名称缩写猜测 Product Design。
+
 ---
 
 ## 3. 读取顺序
@@ -124,6 +126,7 @@ Design Context 至少应明确：
 - 当前任务命中的设计能力；
 - 每项能力对应的规则来源；
 - 若存在匹配 Product Design，记录其对 Common Design 的继承关系；
+- 当前任务代码可用状态（verified / partial / unavailable）；
 - 当前已有代码中的可复用对象；
 - 当前仍无明确规则的内容；
 - 需要用户确认的关键冲突或业务事实。
